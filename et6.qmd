@@ -1,0 +1,34 @@
+---
+title: "LME (all) (ET6)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 6 is the output of linear mixed-effects models run on all complete cases in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + bmi at consent + visitId + (1|subjectId)`.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r libraries}
+library(dplyr)
+library(here)
+here::i_am('et6.qmd')
+```
+
+```{r}
+load(here("out/out_lmm_factor.Rdata"))
+source(here("src/renameVarsLME.R"))
+out_lmm<- renameVarsLME(out_lmm)
+```
+
+```{r}
+DT::datatable(out_lmm$`Minimal model` |> 
+                dplyr::filter(!is.na(p.value_visitIdM6)) |> 
+                dplyr::arrange(p.value_visitIdM6) |> 
+                dplyr::select(assay, variable,
+                              estimate_visitIdM2, estimate_visitIdM4, estimate_visitIdM6,
+                              p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6))
+  
+```

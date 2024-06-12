@@ -1,0 +1,22 @@
+---
+title: "Wilcoxon tests (all) (ET2)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 2 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) run on all individuals who finished the study (intention to treat); paired.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r}
+library(here)
+load(here("out/wilcoxon-tests.Rdata"))
+source(here("src/renameVarsWilcoxon.R"))
+wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
+DT::datatable(wilcoxon_tests$overall |> 
+                dplyr::filter(!is.na(p_M6)) |> 
+                dplyr::arrange(p_M6))
+```

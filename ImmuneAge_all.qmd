@@ -1,0 +1,251 @@
+---
+title: "training ImmuneAge"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r libs, eval = T}
+library(dplyr)
+library(glmnet)
+library(ggplot2)
+library(here)
+library(patchwork)
+library(MultiAssayExperiment)
+```
+
+```{r colors, eval = T}
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+```
+
+```{r functions, eval = T}
+here::i_am("immuneAge_all.qmd")
+source(here("src/agePredictor.R"))
+source(here("src/trainImmAge_all.R"))
+load(here("src/populations_names_annotated.Rdata"))
+
+# exclude some 'duplicate' populations from WB staining
+exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd8_t_cells_freq_of_parent")
+
+populations <- populations |> 
+  dplyr::filter(!name %in% exclude)
+```
+
+Training and evaluating an 'ImmuneAge' predictor.
+
+# T cell Age: all populations
+
+## Train
+
+```{r, eval = T}
+load(here("data/data_raw.Rdata"))
+exp <- c("Flow cytometry: T cell staining")
+
+out <- trainImmAge_all(data, exp, populations, mainOnly = F)
+```
+
+```{r fig.width = 10, fig.height = 3.5}
+out$plots$corr_age
+out$plots$corr_age_intervent
+```
+
+The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
+
+```{r t.all.coefs}
+out$coef
+```
+
+## Plots 
+
+::: {.panel-tabset}
+
+### BMI and age correlation
+
+```{r, fig.width = 10, fig.height = 4.5}
+out$plots$adj | out$plots$bmi | out$plots$spy 
+```
+
+### Follow-up visits ∆ residuals 
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_paired
+```
+
+### Follow-up visits ('raw')
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_raw
+```
+
+:::
+
+# T cell Age: 'main populations'
+
+## Train
+
+```{r}
+load(here("data/data_raw.Rdata"))
+exp <- c("Flow cytometry: T cell staining")
+
+out <- trainImmAge_all(data, exp, populations,
+                   mainOnly = T)
+```
+
+```{r fig.width = 10, fig.height = 3.5}
+out$plots$corr_age
+out$plots$corr_age_intervent
+```
+
+The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
+
+```{r}
+out$coef
+```
+
+## Plots 
+
+::: {.panel-tabset}
+
+### BMI and age correlation
+
+```{r, fig.width = 10, fig.height = 4.5}
+out$plots$adj | out$plots$bmi | out$plots$spy 
+```
+
+### Follow-up visits ∆ residuals 
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_paired
+```
+
+### Follow-up visits ('raw')
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_raw
+```
+
+:::
+
+# Full immune age: all populations
+
+## Train
+
+```{r}
+load(here("data/data_raw.Rdata"))
+exp <- c("Flow cytometry: T cell staining", 'Flow cytometry: white blood cell staining')
+out <- trainImmAge_all(data, exp, populations,
+                   mainOnly = F)
+```
+
+```{r fig.width = 10, fig.height = 3.5}
+out$plots$corr_age
+out$plots$corr_age_intervent
+```
+
+The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
+
+```{r}
+out$coef
+```
+
+## Plots 
+
+::: {.panel-tabset}
+
+### BMI and age correlation
+
+```{r, fig.width = 10, fig.height = 4.5}
+out$plots$adj | out$plots$bmi | out$plots$spy 
+```
+
+### Follow-up visits ∆ residuals 
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_paired
+```
+
+### Follow-up visits ('raw')
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_raw
+```
+
+:::
+
+
+# Full immune age: main populations
+
+## Train
+
+```{r}
+load(here("data/data_raw.Rdata"))
+populations <- populations |> dplyr::filter(!is.na(main_analysis) & main_analysis == 'yes')
+exp <- c("Flow cytometry: T cell staining", 'Flow cytometry: white blood cell staining')
+out <- trainImmAge_all(data, exp, populations,
+                   mainOnly = T)
+```
+
+
+
+
+
+
+```{r fig.width = 10, fig.height = 3.5}
+out$plots$corr_age
+out$plots$corr_age_intervent
+```
+
+The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
+
+```{r}
+out$coef
+```
+
+## Plots 
+
+::: {.panel-tabset}
+
+### BMI and age correlation
+
+```{r, fig.width = 10, fig.height = 4.5}
+out$plots$adj | out$plots$bmi | out$plots$spy 
+```
+
+### Follow-up visits ∆ residuals 
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_paired
+```
+
+### Follow-up visits ('raw')
+
+```{r, fig.width = 10, fig.height = 10}
+out$plots$follow_raw
+```
+
+:::
+
+## Save output for MAE integration
+
+```{r}
+immage_gen <- out$data |> 
+  dplyr::rename(ImmAge_gen = ImmAge,
+                ImmAge_gen_adj = ImmAge_adj) |> 
+  dplyr::select(primary, interventionId, subjectId, visitId, age_at_consent, ImmAge_gen, ImmAge_gen_adj, compliance)
+
+save(immage_gen, file = here("out/ImmAge_gen.Rdata"))
+
+# coefficients are relevant for both if and smk paper, so saved to both
+ImmAge_gen_coef <- out$coef_raw
+save(ImmAge_gen_coef, file = here("out/ImmAge_gen_coef.Rdata"))
+# save(ImmAge_gen_coef, file = paste0(sub("/smk1.*", "", here()), "/if1/1-repository/out/ImmAge_gen_coef.Rdata"))
+```

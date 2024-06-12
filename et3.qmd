@@ -1,0 +1,22 @@
+---
+title: "Wilcoxon tests (comparing compliance) (ET3)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 3 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) comparing changes in higher versus lower compliant individuals (unpaired).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r}
+library(here)
+load(here("out/wilcoxon-tests.Rdata"))
+source(here("src/renameVarsWilcoxon.R"))
+wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
+DT::datatable(wilcoxon_tests$`compliance comparison` |> 
+                dplyr::filter(!is.na(p_M6)) |> 
+                dplyr::arrange(p_M6))
+```

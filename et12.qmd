@@ -1,0 +1,24 @@
+---
+title: "RMcorr (ET12)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 12 is the output of the [repeated measures correlation analysis](helper-rmcorr.qmd), filtering self-correlations and any p values > 0.01.
+
+```{r}
+library(here)
+here::i_am('et9.qmd')
+source(here("src/loadRMcorr.R"))
+source(here("src/renameVarsrmcorr.R"))
+corr <- loadRMcorr(filter_ASV = T)
+
+rmcorr <- renameVarsrmcorr(corr)
+writexl::write_xlsx(rmcorr, path = here("out/Extended-Data-Table-12.xlsx"))
+```
+
+```{r}
+DT::datatable(rmcorr)
+
+```

@@ -1,0 +1,66 @@
+x,label,assay2
+leukocytes,leukocytes,Blood haemogram
+neutrophils,neutrophils,Blood haemogram
+erythrocytes,erythrocytes,Blood haemogram
+hemoglobin,haemoglobin,Blood haemogram
+hematocrit,haematocrit,Blood haemogram
+mch,MCH,Blood haemogram
+mchc,MCHC,Blood haemogram
+mcv,MCV,Blood haemogram
+distrwidth,red cell distribution,Blood haemogram
+platelets,platelets,Blood haemogram
+monocytes,monocytes,Blood haemogram
+granim,immature granulocytes,Blood haemogram
+crp,CRP,Blood haemogram
+fvcpp,FVC (% pred),Spirometry
+fev1pp,FEV1 (% pred),Spirometry
+fev1fvcp,FEV1/FVC (pred),Spirometry
+relpower60hf,relative power (60% peak HR),Functional exercise capacity
+relpower80hf,relative power (80% peak HR),Functional exercise capacity
+relmaxcap,relative power (peak HR),Functional exercise capacity
+vo2max,VO2peak,Functional exercise capacity
+maxhr,peak HR,Functional exercise capacity
+hba1c,HbA1c,Blood test
+cholesterol,cholesterol,Blood test
+hdl,HDL,Blood test
+ldl,LDL,Blood test
+nhdl,non-HDL,Blood test
+triglycerides,triglycerides,Blood test
+urea,urea,Blood test
+creatinine,creatinine,Blood test
+totalprotein,total protein,Blood test
+bilirubin,bilirubin,Blood test
+uricacid,uric acid,Blood test
+asat,ASAT,Blood test
+alat,ALAT,Blood test
+ggt,GGT,Blood test
+ck,CK,Blood test
+alp,ALP,Blood test
+ldh,LDH,Blood test
+iron,iron,Blood test
+transferrin,transferrin,Blood test
+ferritin,ferritin,Blood test
+transferrinsat,transferrin saturation,Blood test
+sedrate,sedimentation rate,Blood test
+plateletvol,platelet volume,Blood test
+segneutrophils,segmented neutrophils,Blood test
+lymphocytes,lymphocytes,Blood test
+vitb9,vitamin B9,Blood test
+vitb12,vitamin B12,Blood test
+tsh,TSH,Blood test
+weight,weight,Body weight and composition
+bmi,BMI,Body weight and composition
+fm,fat mass,Body weight and composition
+bcm,body cellular mass,Body weight and composition
+ecw,extracellular water,Body weight and composition
+scfat,subcutaneous fat,Body weight and composition
+vifat,visceral fat,Body weight and composition
+imt_mean,intima media thickness,Vascular features
+pwv,pulse wave velocity,Vascular features
+sysbp,systolic BP,Functional exercise capacity
+diabp,diastolic BP,Functional exercise capacity
+eareaum,epidermal area,Skin histology and transepidermal water loss assay
+ethickum,epidermal thickness,Skin histology and transepidermal water loss assay
+ecells,epidermal n cells,Skin histology and transepidermal water loss assay
+tewl,transepidermal water loss,Skin histology and transepidermal water loss assay
+rhr,resting heart rate,Functional exercise capacity

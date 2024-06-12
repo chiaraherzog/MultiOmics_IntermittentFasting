@@ -1,0 +1,59 @@
+project:
+  type: website
+
+website:
+  title: 'TG repository: intermittent fasting'
+  back-to-top-navigation: true
+  sidebar:
+    logo-href: index.qmd
+    style: "floating"
+    search: true
+    contents:
+      - href: index.qmd
+        text: 'Home'
+      - section: "Helper functions and prep"
+        contents:
+          - helper-variance-decomposition.qmd
+          - helper-corr-age-at-baseline.qmd
+          - helper-corr-bmi-at-baseline.qmd
+          - helper-wilcoxon-tests.qmd
+          - helper-lmm.qmd
+          - helper-rmcorr.qmd
+          - immuneAge_all.qmd
+          - metabolome-anno.qmd
+          - helper-corr-ic-at-baseline_salivamicrob.qmd
+          - major-gut-metabolites.qmd
+          - mefisto.qmd
+          - menopause.qmd
+          - helper-bmi.qmd
+      - section: "Figures"
+        contents:
+          - fig1-overview.qmd
+          - fig2-clin.qmd
+          - fig3-epi.qmd
+          - fig4-imm-metabolome.qmd
+          - fig5-micro.qmd
+          - fig6-integration.qmd
+      - section: "Tables"
+        contents:
+          - tab1.qmd
+          - et2.qmd
+          - et3.qmd
+          - et4.qmd
+          - et5.qmd
+          - et6.qmd
+          - et7.qmd
+          - et8.qmd
+          - et9.qmd
+          - et10.qmd
+          - et11.qmd
+          - et12.qmd
+          
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+

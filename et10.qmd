@@ -1,0 +1,32 @@
+---
+title: "LME (menopause modulation) (ET10)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 10 is the output of linear mixed-effects models run on high compliance individuals assessing the modulation of effects by menopause over time in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + smoking pack years + visitId*menopause + interventionId + (1|subjectId)`.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r libraries}
+library(dplyr)
+library(here)
+here::i_am('et10.qmd')
+```
+
+
+```{r}
+load(here("out/out_lmm_factor.Rdata"))
+source(here("src/renameVarsLME.R"))
+out_lmm<- renameVarsLME(out_lmm)
+```
+
+```{r}
+DT::datatable(out_lmm$`Menopause interaction` |> 
+                dplyr::filter(!grepl("ASV", variable)) |> 
+                dplyr::filter(!is.na(`p.value_visitIdM6:mpstatrsyes`)) |> 
+                dplyr::arrange(`p.value_visitIdM6:mpstatrsyes`))
+```

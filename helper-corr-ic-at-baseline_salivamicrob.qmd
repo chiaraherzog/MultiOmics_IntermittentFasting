@@ -1,0 +1,104 @@
+---
+title: "corr ~ predicted IC contant buccal samples at baseline"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = F)
+```
+
+
+```{r libs}
+library(tidyverse)
+
+source("src/corrIcBaseline.R")
+```
+
+This script is to compute the correlation with predicted IC buccal samples (epigenetics) at baseline for all saliva microbiome features.
+
+# Compute correlation at baseline for normalized data
+
+Normalized data (!) are loaded, meaning z-scaled relative abundances for microbiome features, and z-scaled estimated IC content buccals
+
+```{r getdata, eval = F}
+
+# load in data
+load("data/data_normalized.Rdata")
+
+exp <- c("Saliva microbiome: ASVs",
+         "Saliva microbiome: families")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data[,,exp], colData = c("interventionId", "visitId"))) |> 
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::filter(visitId == "M0" & interventionId != "S") %>%
+  dplyr::select(-interventionId)
+
+# grab IC content buccals
+exp <- c("Composite methylation scores: buccal")
+features <- c("interventionId", "visitId")
+dat <- as.data.frame(wideFormat(data[,,exp],
+                                   colData = features)) %>% 
+  dplyr::filter(visitId == "M0" & interventionId != "S") %>%
+  dplyr::select(-interventionId)
+colnames(dat) <- gsub("Composite.methylation.scores..buccal_", "", colnames(dat))
+dat <- dat %>%
+  dplyr::select(primary,ic)
+
+df <- full_join(df,dat) 
+
+rm(data,dat) ; gc()
+
+corr <- corrIcBaseline(df)
+
+save(corr, file = "out/corrIcBaseline_saliva.R")
+
+```
+
+
+# Compute correlation at baseline for raw data
+
+Raw data (!) are loaded, meaning relative abundances for microbiome features, and estimated IC content buccals
+
+```{r corr, eval = F}
+
+# load in data
+load("data/data_raw.Rdata")
+
+exp <- c("Saliva microbiome: ASVs",
+         "Saliva microbiome: families")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data[,,exp], colData = c("interventionId", "visitId"))) |> 
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::filter(visitId == "M0" & interventionId != "S") %>%
+  dplyr::select(-interventionId)
+
+# grab IC content buccals
+exp <- c("Composite methylation scores: buccal")
+features <- c("interventionId", "visitId")
+dat <- as.data.frame(wideFormat(data[,,exp],
+                                   colData = features)) %>% 
+  dplyr::filter(visitId == "M0" & interventionId != "S") %>%
+  dplyr::select(-interventionId)
+colnames(dat) <- gsub("Composite.methylation.scores..buccal_", "", colnames(dat))
+dat <- dat %>%
+  dplyr::select(primary,ic)
+
+df <- full_join(df,dat) 
+
+rm(data,dat) ; gc()
+
+corr <- corrIcBaseline(df)
+
+save(corr, file = "out/corrIcBaseline_saliva_raw.R")
+
+```
+
+
+

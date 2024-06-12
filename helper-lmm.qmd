@@ -1,0 +1,133 @@
+---
+title: "Linear mixed models"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(dplyr)
+library(lmerTest)
+library(lme4)
+library(here)
+library(broom)
+library(MultiAssayExperiment)
+
+here::i_am("helper-lmm.qmd")
+source("src/summary_lmm_v2.R")
+```
+
+This script is to run linear mixed models on all data points. The output is saved under `out/lmm_continuous.Rdata` or `out/lmm_factor.Rdata` and is loaded in for the final figures.
+
+# Load data
+
+Normalized data are loaded to run trajectories. To avoid any duplicates for variables (e.g., methylation scores computed in two tissues and assays), assay and variable name are concatenated.
+
+```{r getdata, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent'))) |> 
+  dplyr::filter(!is.na(value))
+
+# Filter variables: (see t-tests.qmd for how this was generated:)
+load(here("src/vars.Rdata"))
+
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::inner_join(vars, by = c('rowname' = 'x',
+                                 'assay' = 'assay')) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# remove full data
+rm(data);gc()
+
+data  <- df
+variables = unique(data$rowname)
+```
+
+# Linear model: factor
+
+The linear model is run on each variable in the data, using visitId as a factor.
+
+```{r, eval = F}
+out_lmm <- summary_lmm(data,
+                       variables = variables,
+                       timeType = 'factor',
+                       outName = 'out_lmm_factor.Rdata')
+```
+
+
+# Linear model: continuous
+
+The linear models is run on each variable in the data, using time as a continuous variable.
+
+```{r lmm.cont, eval = F}
+out_lmm <- summary_lmm(data,
+                       variables = variables,
+                       timeType = 'continuous',
+                       outName = 'out_lmm_continuous_15Apr2024.Rdata')
+```
+
+```{r save.as.script, eval = F}
+knitr::purl("helper-lmm.qmd",
+            output = 'helper-lmm.R')
+```
+
+What models are we using?
+
+```{r, eval = T}
+cat(readLines(here('out/out_lmm_factor_models.txt')), sep = '\n')
+```
+
+We predominantly use:
+
+* `Minimal model`: accounting for age + BMI at baseline, we assess the impact of **time** on the value ("time" estimate in heatmaps)
+* `Basic model with BMI`: accounting for age + BMI at baseline, we assess the impact of **high compliance** on the value ("high compliance" estimate in heatmaps), with the low compliance group being the reference group.
+* `Intervention (higher compliance)`: accounting for age and BMI at baseline, we assess the impact of **intervention** (randomization) on the value ("MCT" estimate in heatmaps), restricting to highly compliant individuals only.
+
+# Write Extended Data Table (Factor)
+
+```{r, eval = T}
+load(here("out/out_lmm_factor.Rdata"))
+source(here('src/renameVarsLME.R'))
+out_lmm <- renameVarsLME(out_lmm)
+```
+
+# Write supplementary tables
+
+Now we write the lmm to the extended data tables:
+
+```{r, eval=F}
+for (x in c("Minimal model", "Basic model with BMI", "Intervention (higher compliance)",
+            "Menopause general",
+            "Menopause interaction")){
+  file = case_when(x == 'Minimal model' ~ "6",
+                   x == 'Basic model with BMI' ~ '7',
+                   x == 'Intervention (higher compliance)' ~ '8',
+                   x == 'Menopause general' ~ "9",
+                   x == 'Menopause interaction' ~ "10")
+  
+  writexl::write_xlsx(as.data.frame(out_lmm[[x]]),
+                      path = paste0("out/Extended-Data-Table-",
+                                    file,
+                                    ".xlsx")
+    )
+}
+```
+
+Tables can be viewed in extended data tables [ET6](et6.qmd), [ET7](et7.qmd), and [ET8](et8.qmd) and on the data portal.

@@ -1,0 +1,968 @@
+---
+title: "Integrative analysis"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+# Figures
+
+::: {.panel-tabset}
+
+## Main figure 6
+
+![](figures-png/figure6-integration.png)
+
+## Extended Data Figure 11
+
+![](figures-png/e11.png)
+
+## Extended Data Figure 12
+
+![](figures-png/e12.png)
+
+## Extended Data Figure 13
+
+![](figures-png/e13.png)
+
+:::
+
+# Code
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+
+suppressMessages(suppressWarnings({
+  
+    library(dplyr)
+    library(ggplot2)
+    library(patchwork)
+    library(ggtext)
+    library(here)
+    library(ggrepel)
+    library(broom)
+    library(ComplexHeatmap)
+    library(MultiAssayExperiment)
+    library(RColorBrewer)
+    library(viridis)
+    library(circlize) 
+    library(tidyverse)
+    library(rcartocolor)
+    library(openxlsx)
+    library(lmerTest)
+    library(lme4)
+    library(broom)
+  
+}))
+
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+
+source(here("src/rmcorr_plot.R"))
+here::i_am("fig6-integration.qmd")
+```
+
+## Main figure
+
+### a) Bubble plot
+
+* When do significant changes happen in which ome?
+* p value<0.01
+* intention to treat, I/K grouped, plotting selected methylation scores in each tissue
+
+
+```{r}
+# Select variables to keep
+load(here("src/vars.Rdata"))
+load(here("out/out_lmm_factor.Rdata"))
+load(here("out/t-tests.Rdata"))
+source(here('src/bubble_summary.R'))
+
+dat <- bubble_summary(as.data.frame(out_lmm$`Minimal model`),
+                      as.data.frame(t_test$overall),
+                      vars = vars)
+
+dat <- dat |> 
+  dplyr::mutate(group = case_when(grepl("Body|Functional|Routine|Skin|Spiro|Subcut|Vascular", assay) ~ "Clinical features",
+                                  grepl("Blood|Immune|Flow", assay) ~ "Blood omics",
+                                  grepl("Buccal|Saliva", assay) ~ "Saliva omics",
+                                  grepl("Cervical", assay) ~ "Cervix omics",
+                                  grepl("Stool", assay) ~ "Stool omics",
+                                  grepl("Urine", assay) ~ "Urine omics"),
+                group = stringr::str_wrap(group, width = 1),
+                group = factor(group, levels = c("Clinical\nfeatures", "Blood\nomics", "Saliva\nomics", "Cervix\nomics", "Stool\nomics" ,"Urine\nomics")))
+
+# dat$assay <- factor(dat$assay, levels = rev(omes))
+# dat <- dat |> arrange(assay)
+
+dat |> 
+  ggplot(aes(x = visitId, y = assay,
+             size = num_significant,
+             fill = proportion_significant)) +
+  geom_point(shape = 21, alpha = 0.8) +
+  scale_size_continuous(range = c(0, 12)) +
+  scale_fill_gradientn(colors = cols[c(8, 1, 2, 3, 5, 6)]) +
+  labs(x = "", y = "",
+       fill = "Proportion significant features",
+       size = "Number of significant features") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        strip.text.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',legend.direction = 'vertical',
+        axis.text.y = element_text(hjust = 1),
+        strip.background.y = element_rect(fill = NA,
+                                          color = NA)) +
+  facet_grid(group~1,drop = T,scales = 'free_y',
+             space = 'free_y') +
+  coord_cartesian(clip = 'off')
+```
+
+#### a_1) Bubble plot, I versus K separately
+
+* When do significant changes happen in which ome?
+* Reran minimal model on I and K groups separately
+* p value < 0.01
+* intention to treat, plotting selected methylation scores in each tissue
+
+Running LMM in each tissue:
+
+```{r lmm.dat}
+# load in data
+load("data/data_normalized.Rdata")
+load(here("src/vars.Rdata"))
+vars <- vars |> 
+  dplyr::filter(!grepl("ASV", assay)) |> 
+  dplyr::mutate(assay = gsub("TEWL", "transepidermal water loss assay", assay),
+                rowname = paste0(assay, "_", x))
+
+# extract all data in long format plus basic anno for relevant omes
+df <- as.data.frame(longFormat(data[,,unique(vars$assay)],
+                    colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname)) |> 
+  dplyr::filter(rowname %in% vars$rowname)
+
+# remove full data
+rm(data);gc()
+```
+
+```{r runIandK.lmm, eval = F}
+data  <- df |> 
+  dplyr::filter(interventionId == "I")
+variables = unique(data$rowname)
+
+source(here('src/summary_lmm_v2.R'))
+
+out_lmm <- summary_lmm(data,
+                       variables = variables,
+                       models <- list("Minimal model" = 'value ~ visitId + age_at_consent + bmi_at_consent + (1|subjectId)'),
+                       timeType = 'factor',
+                       outName = 'out_lmm_factor_bubblesI.Rdata',
+                       cores = 1)
+
+data  <- df |> 
+  dplyr::filter(interventionId == "K")
+
+out_lmm <- summary_lmm(data,
+                       variables = variables,
+                       models <- list("Minimal model" = 'value ~ visitId + age_at_consent + bmi_at_consent + (1|subjectId)'),
+                       timeType = 'factor',
+                       outName = 'out_lmm_factor_bubblesK.Rdata',
+                       cores = 1)
+```
+
+Run t tests separately for I and K:
+
+```{r runIandK.t, eval = F}
+load("data/data_raw.Rdata")
+load(here("src/vars.Rdata"))
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::inner_join(vars, by = c("rowname" = "x",
+                                 "assay" = "assay")) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+# all(df$rowname %in% vars$x)
+
+# remove S and any non M0-M6
+df_raw <- df |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) 
+
+# remove full data
+rm(data);gc()
+
+# load in data
+load("data/data_baseline_change.Rdata")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::inner_join(vars, by = c("rowname" = "x",
+                                 "assay" = "assay")) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# remove S and any non M0-M6
+df_change <- df |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) 
+
+# remove full data
+rm(data, df);gc()
+
+source(here('src/t_tests_sep.R'))
+df_i <- df_change |> dplyr::filter(interventionId == 'I' & !grepl("ASV", assay))
+df_raw_i <- df_raw |> dplyr::filter(interventionId == 'I' & !grepl("ASV", assay))
+
+t_test <- t_tests_sep(df_i, df_raw_i)
+save(t_test, file = here("out/t-tests_bubblesI.Rdata"))
+
+df_k <- df_change |> dplyr::filter(interventionId == 'K' & !grepl("ASV", assay))
+df_raw_k <- df_raw |> dplyr::filter(interventionId == 'K' & !grepl("ASV", assay))
+
+t_test <- t_tests_sep(df_k, df_raw_k)
+save(t_test, file = here("out/t-tests_bubblesK.Rdata"))
+```
+
+Put together the bubbles:
+
+```{r}
+load("out/out_lmm_factor_bubblesI.Rdata")
+load("out/t-tests_bubblesI.Rdata")
+
+dat <- bubble_summary(as.data.frame(out_lmm$`Minimal model`),
+                      as.data.frame(t_test$overall),
+                      vars = vars)
+dat$intervention <- "I"
+dat2 <- dat
+
+load("out/out_lmm_factor_bubblesK.Rdata")
+load("out/t-tests_bubblesK.Rdata")
+
+dat <- bubble_summary(as.data.frame(out_lmm$`Minimal model`),
+                      as.data.frame(t_test$overall),
+                      vars = vars)
+dat$intervention <- "K"
+
+dat2 <- rbind(dat2,dat)
+
+# sort features
+dat <- dat2 |> 
+  dplyr::mutate(group = case_when(grepl("Body|Functional|Routine|Skin|Spiro|Subcut|Vascular", assay) ~ "Clinical features",
+                                  grepl("Blood|Immune|Flow", assay) ~ "Blood omics",
+                                  grepl("Buccal|Saliva", assay) ~ "Oral omics",
+                                  grepl("Cervical", assay) ~ "Cervix omics",
+                                  grepl("Stool", assay) ~ "Stool omics",
+                                  grepl("Urine", assay) ~ "Urine omics"),
+                group = stringr::str_wrap(group, width = 1),
+                group = factor(group, levels = c("Clinical\nfeatures", "Blood\nomics", "Oral\nomics", "Cervix\nomics", "Stool\nomics" ,"Urine\nomics")))
+
+bubble_plot <- dat |> 
+  ggplot(aes(x = visitId, y = assay,
+             fill = num_significant,
+             size = proportion_significant)) +
+  geom_point(shape = 21, alpha = 0.8) +
+  scale_size_continuous(range = c(0, 12)) +
+  scale_fill_gradientn(colors = cols[c(8, 1, 2, 3, 5, 6)]) +
+  labs(x = "", y = "",
+       fill = "Proportion significant features",
+       size = "Number of significant features") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        strip.background.x = element_rect(fill = NA,
+                                          color = NA),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',
+        legend.direction = 'vertical',
+        axis.text.y = element_text(hjust = 1),
+        strip.background.y = element_rect(fill = NA,
+                                          color = NA)) +
+  facet_grid(group~intervention,drop = T,scales = 'free_y',
+             space = 'free_y') +
+  coord_cartesian(clip = 'off')
+
+# dat |> 
+#   dplyr::mutate(visitId = factor(visitId, levels = c("M6", "M4", "M2"))) |> 
+#   ggplot(aes(x = assay, y = visitId,
+#              size = num_significant,
+#              fill = proportion_significant)) +
+#   geom_point(shape = 21, alpha = 0.8) +
+#   scale_size_continuous(range = c(0, 12)) +
+#   scale_fill_gradientn(colors = cols[c(8, 1, 2, 3, 5, 6)]) +
+#   labs(x = "", y = "",
+#        fill = "Proportion significant features",
+#        size = "Number of significant features") +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         strip.background.x = element_rect(fill = NA,
+#                                           color = NA),
+#         axis.ticks.y = element_blank(),
+#         axis.ticks.x = element_blank(),
+#         axis.text.x = element_text(angle = 90, hjust = 1),
+#         legend.position = 'bottom',
+#         axis.text.y = element_text(hjust = 1),
+#         strip.background.y = element_rect(fill = NA,
+#                                           color = NA)) +
+#   facet_grid(intervention~group,drop = T,scales = 'free_x',
+#              space = 'free_x') +
+#   coord_cartesian(clip = 'off')
+```
+
+```{r print.bubbles}
+cairo_pdf(here("out/pdf/6a.pdf"), width = 5, height = 8.5)
+print(bubble_plot)
+dev.off()
+```
+
+#### a_3) Potential diagram - up/down by feature?
+
+```{r}
+# Select variables to keep
+load(here("src/vars.Rdata"))
+load(here("out/out_lmm_factor.Rdata"))
+load(here("out/t-tests.Rdata"))
+
+diagram_summary <- function(lmmdat, t_test, vars){
+  
+  # Linear mixed models: main data, excluding metabolome
+  dat <- lmmdat |> 
+    tidyr::separate(x, into = c("assay", "Feature"), sep = "_", extra = "merge") |> 
+    dplyr::inner_join(vars, by = c('assay' = 'assay',
+                                   'Feature' = 'x'))|> 
+    dplyr::mutate(assay = case_when(((assay == "Blood haemogram") | assay2 == 'Blood test') ~ 'Routine bloods',
+                                    (grepl('methylation', assay) & grepl('cervical', assay)) ~ 'Cervical methylation',
+                                    (grepl('methylation', assay) & grepl('buccal', assay)) ~ 'Buccal methylation',
+                                    (grepl('methylation', assay) & grepl('blood', assay)) ~ 'Blood methylation',
+                                    grepl("Skin", assay) ~ "Skin histology and TEWL",
+                                    grepl("vifat|scfat", Feature) ~ "Subcutaneous and visceral fat",
+                                    !is.na(assay2) ~ assay2,
+                                    TRUE ~ assay)) |> 
+    dplyr::select(assay, Feature, contains(c("p.value_visitId", "estimate"))) |> 
+    dplyr::mutate(assay = gsub(": families", "", assay)) |> 
+    dplyr::filter(!grepl("ASVs|metabolome", assay)) |> 
+    dplyr::select(-contains(c("age", "bmi")))
+  
+  dat_m <- t_test |> 
+    tidyr::separate(rowname, into = c("assay", "Feature"), sep = "_", extra = "merge") |> 
+    dplyr::inner_join(vars, by = c('assay' = 'assay',
+                                   'Feature' = 'x'))|> 
+    dplyr::filter(grepl("nuclear", assay)) |> 
+    dplyr::mutate(assay = assay2) |> 
+    dplyr::select(assay, Feature, c(M2, M4, M6), starts_with("p_")) |> 
+    dplyr::rename_with(~ gsub("p_", "p.value_visitId", .x), starts_with("p_")) |> 
+    dplyr::rename_with(~ gsub("M", "estimate_visitIdM", .x), starts_with("M"))
+  
+  dat <- dat |> 
+    dplyr::bind_rows(dat_m) |> 
+    pivot_longer(starts_with("p.value_visitIdM"), names_to = "visitId", values_to = "p.value") |> 
+    mutate(significant = ifelse(p.value < 0.05, 1, 0)) |> 
+    tidyr::pivot_longer(starts_with("estimate"), names_to = 'visitIde', values_to = 'estimate') |> 
+    dplyr::mutate(visitIde = gsub("estimate_visitId", "", visitIde),
+                  visitId = gsub("p.value_visitId", "", visitId)) |> 
+    dplyr::filter(visitId == visitIde) |> 
+    dplyr::select(-visitIde) |> 
+    dplyr::mutate(dir = ifelse(sign(estimate) == -1, "neg", "pos")) |> 
+    group_by(assay, visitId, dir) |> 
+    summarise(
+      num_significant = sum(significant),
+      proportion_significant = sum(significant) / n()) |> 
+    ungroup()
+  
+  return(dat)
+}
+```
+
+### b) Repeated measures: interaction
+
+```{r rmcorr.interaction}
+source(here("src/loadRMcorr.R"))
+
+corr <- loadRMcorr(filter_ASV = T)
+
+# get into correct format for chord Diagram
+corrdiag <- corr |> 
+  dplyr::filter(!grepl("ASV", assay1) & !grepl("ASV", assay2)) |> 
+  dplyr::filter(!(grepl("metabolome", assay1) & !grepl("log", assay1)) & !(grepl("metabolome", assay2) & !grepl("log", assay2))) |> 
+  dplyr::select(assay1, assay2, rmcorr.r) |> 
+  dplyr::mutate(across(c(assay1,assay2), ~ stringr::str_replace(., "-log", ""))) |> 
+  dplyr::rename(cor = rmcorr.r)
+
+# Colour assignment
+col12 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(12)
+grid.col = c("Flow cytometry:\nimmune cells" = col12[11],
+             "Immune\nage" = col12[10],
+             "Routine\nbloods" = col12[9],
+             "Body\ncomposition" = col12[8],
+             "Functional\nclinical measures" = col12[7],
+             "Cervical\nmethylation" = col12[6],
+             "Buccal\nmethylation" = col12[5],
+             "Blood\nmethylation" = col12[4],
+             "Saliva\nmicrobiome" = col12[3],
+             "Stool\nmicrobiome" = col12[2],
+             "Urine\nmetabolome" = col12[1],
+             "Saliva\nmetabolome" = col12[12])
+
+col12 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(13)
+grid.col = c("ImmuneSMK" = col12[1],
+             "Flow cytometry:\nimmune cells" = col12[13],
+             "Immune\nage" = col12[12],
+             "Routine\nbloods" = col12[11],
+             "Body\ncomposition" = col12[10],
+             "Functional\nclinical measures" = col12[9],
+             "Cervical\nmethylation" = col12[8],
+             "Buccal\nmethylation" = col12[7],
+             "Blood\nmethylation" = col12[6],
+             "Saliva\nmicrobiome" = col12[5],
+             "Stool\nmicrobiome" = col12[4],
+             "Urine\nmetabolome" = col12[3],
+             "Saliva\nmetabolome" = col12[2])
+
+
+# Gaps
+gaps = c("Flow cytometry:\nimmune cells" = 3,
+         "Immune\nage" = 3,
+         "Routine\nbloods" = 12,
+         "Body\ncomposition" = 3,
+         "Functional clinical measures" = 12,
+         "Cervical\nmethylation" = 3,
+         "Buccal\nmethylation" = 3,
+         "Blood\nmethylation" = 12,
+         "Saliva\nmicrobiome" = 3,
+         "Stool\nmicrobiome" = 12,
+         "Urine\nmetabolome" = 3,
+         "Saliva\nmetabolome" = 12)
+
+# Order
+order = names(grid.col)
+
+
+# Print
+cairo_pdf(here("out/pdf/6b.pdf"), width = 6, height = 6)
+  circos.par(gap.after = gaps)
+  chordDiagram(corrdiag,
+               grid.col = grid.col,
+               order = order,
+               annotationTrack = "grid",
+               preAllocateTracks = list(track.height = max(strwidth(c(corrdiag$assay1, corrdiag$assay2)))))
+  # we go back to the first track and customize sector labels
+  circos.track(track.index = 1, panel.fun = function(x, y) {
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+                facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5),cex = 0.9)
+  }, bg.border = NA) # here set bg.border to NA is important
+  circos.clear()
+dev.off()
+```
+
+### c) Network diagram (methylation features)
+
+```{r network.diag}
+source(here("src/multi_network_diagram.R"))
+
+features = 'PhenoAge|CausAge|DamAge|AdaptAge|AgeAccel|DunedinPACE|index_OC|index_mQTL|buccal_BC|index_BC|index_CIN|index_EC|buccal_globalMethylation_line1'
+
+# Note: uses corr and grid.col from previous interaction plot, make sure these exist
+
+cairo_pdf(here("out/pdf/6c.pdf"), width = 11, height = 9)
+multi_network_diagram(features = features,
+                      seed = 7)
+dev.off()
+
+# Note, some of these correlations are not strong/verified:
+# grimAgeExcl <- 'Stool microbiome: families_Actinomycetaceae'
+# phenoExcl <- 'Saliva microbiome: families_Enterobacteriaceae'
+# ecExcl <- 'Stool microbiome: families_Actinomycetaceae'
+# exclHba1c <- 'Stool microbiome: families_Atopobiaceae'
+```
+
+
+
+## Extended Data Figure 11 (MEFISTO)
+
+```{r libs}
+suppressWarnings(suppressMessages({
+  library(tidyverse)
+  library(MultiAssayExperiment)
+  library(MOFA2)
+  library(ComplexHeatmap)
+  library(rcartocolor)
+  library(patchwork)
+  library(gridExtra)
+}))
+
+source("src/mefisto_plots.R")
+
+```
+
+## I/K groups mefisto
+
+```{r}
+
+# load in data
+load("data/data_normalized.Rdata")
+
+model <- load_model("out/mefisto/mefisto_time_intervention.hdf5")
+
+# reload the omes
+df_dat <- read.table(file="out/mefisto/mefisto_input_intervention.txt",sep="\t",header=T)
+
+
+
+features <- c("interventionId", "subjectId", "visitId", "compliance", "mpstatrs", "age_at_consent", "bmi_at_consent", "smoking_ever", "etohu_curr", "diet", "preg_ever")
+
+metadat <- colData(data) %>% 
+  as.data.frame %>% 
+  dplyr::select(features) %>%
+  filter(!visitId %in% c("M12","M18")) %>%
+  rownames_to_column(var="sample") %>%
+  distinct()
+
+metadat <- left_join(df_dat[,1, drop = FALSE],
+                     metadat, by = "sample") %>% distinct()
+metadat$group <- metadat$interventionId
+
+samples_metadata(model) <- metadat
+
+print(model)
+
+# extract data on variance explained by each factor
+df1 <- plot_variance_explained(model,
+                        x = 'factor',
+                        y = 'view')
+df1 <- as.data.frame(df1$data)
+
+# simplify view names
+df1$view <- gsub(": normalized","",df1$view)
+
+# extract factor values
+df2 <- plot_factors_vs_cov(model, color_by = "visitId", legend = FALSE, return_data = TRUE)
+
+```
+
+* variance explained by each factor
+* factor 1 >100% variation explained??
+
+```{r, fig.height = 5}
+p <- plot_variance_explained(model,
+                         x = 'group',
+                         y = 'factor') 
+p + theme(strip.text.x = element_text(angle = 90, hjust = 0))
+
+```
+
+* PCA-like plot:
+
+```{r}
+
+p <- mefisto_biplot_F12(df1,df2,"factor")
+p
+
+```
+
+```{r, eval = F}
+
+cairo_pdf("out/pdf/extxa-mefisto.pdf", width = 7, height = 3.5)
+print(p)
+dev.off()
+
+
+```
+
+* factor variance and significance association with selected covariates:
+
+```{r}
+
+feat <- features
+labs <- c('interventionId', 'subjectId', 'visitId', 'compliance rate',
+         'menopausal status', 'age (at consent)', 'BMI (at consent)', 
+         'smoking (ever)', 'current alcohol units/wk', 'dietary pattern', 'pregnancy (ever)')
+
+p <- mefisto_factor_covcor(df1,df2,feat,labs)
+p
+
+```
+
+```{r, eval=F}
+cairo_pdf("out/pdf/extxb-mefisto.pdf", width = 4.5, height = 3.25)
+print(p)
+dev.off()
+
+```
+
+* factor1 and 3 significantly associated with time, factor8 both with time and compliance:
+
+```{r}
+
+
+p1 <- mefisto_factor_box(df2, metadat, "Factor1") 
+p2 <- mefisto_factor_box(df2, metadat, "Factor3")  
+p3 <- mefisto_factor_box(df2, metadat, "Factor8") 
+
+print(p1)
+print(p2)
+print(p3)
+
+```
+
+```{r, eval=F}
+
+cairo_pdf("out/pdf/extxc-mefisto.pdf", width = 6, height = 6)
+
+grid.arrange(
+  p1[[1]], 
+  p1[[2]],
+  p2[[1]], 
+  p2[[2]],
+  p3[[1]], 
+  p3[[2]],
+             ncol = 2)
+
+dev.off()
+
+```
+
+* top 30 features factor 1:
+
+```{r}
+
+w_f1 <- get_weights(model, factors = 1, as.data.frame = TRUE)
+
+p <- mefisto_plot_weights(w_f1, "Factor1", 30,
+                          "out/mefisto/renamed_tcs_features_indiv.Rds",
+                          "out/mefisto/renamed_wb_features_indiv.Rds")
+p
+
+
+```
+
+```{r, eval=F}
+
+cairo_pdf("out/pdf/extxd-mefisto.pdf", width = 6, height = 6)
+print(p)
+dev.off()
+
+```
+
+* top 30 features factor 3:
+
+```{r}
+
+w_f3 <- get_weights(model, factors = 3, as.data.frame = TRUE)
+
+p <- mefisto_plot_weights(w_f3, "Factor3", 30,
+                          "out/mefisto/renamed_tcs_features_indiv.Rds",
+                          "out/mefisto/renamed_wb_features_indiv.Rds")
+p
+
+
+```
+
+* top 30 features factor 8:
+
+```{r}
+
+w_f8 <- get_weights(model, factors = 8, as.data.frame = TRUE)
+
+p <- mefisto_plot_weights(w_f8, "Factor8", 30,
+                          "out/mefisto/renamed_tcs_features_indiv.Rds",
+                          "out/mefisto/renamed_wb_features_indiv.Rds")
+p
+
+
+```
+
+## Extended Data 12
+
+### a) p value histogram
+
+```{r pvaluehist}
+load(here('out/rmcorr.Rdata'))
+rmcorr_gen <- rmcorr
+load(here('out/rmcorr_change.Rdata'))
+rmcorr_change <- rmcorr
+rmcorr <- rmcorr_gen
+
+# First: filter those that have consistent sign for change
+rm <- rmcorr |> 
+  dplyr::select(measure1, measure2, assay1, assay2, rmcorr.r, p.vals) |> 
+  dplyr::left_join(dplyr::select(rmcorr_change, measure1, measure2, rmcorr.r, p.vals, assay1, assay2),
+                   by = c('measure1', 'measure2', 'assay1', 'assay2'), suffix = c('', '.change')) |> 
+  dplyr::filter(sign(rmcorr.r) == sign(rmcorr.r.change) | grepl("-log", assay1) | grepl("-log", assay2)) 
+
+# Additional filtering: Exclude visitId
+tmp <- rm |> dplyr::filter(!assay1 %in% c('visitId') & !assay2 %in% c('visitId')) |>
+  dplyr::filter(!grepl("ASV", assay1) & !grepl("ASV", assay2)) |>
+  dplyr::filter(assay1 != assay2 & !(assay1 == 'Immune\nage' & grepl("cytometry", assay2)) & !(assay2 == 'Immune\nage' & grepl("cytometry", assay1))) |>
+  dplyr::filter(!(grepl("Saliva\nmicrobiome", assay1) & grepl("Saliva\nmicrobiome", assay2))) |> 
+  dplyr::filter(!(grepl("Stool\nmicrobiome", assay1) & grepl("Stool\nmicrobiome", assay2))) |> 
+  dplyr::filter(!(grepl("Saliva\nmetabolome", assay1) & grepl("Saliva\nmetabolome", assay2))) |> 
+  dplyr::filter(!(grepl("Urine\nmetabolome", assay1) & grepl("Urine\nmetabolome", assay2)))
+
+a <- tmp |> 
+  ggplot(aes(x = p.vals)) +
+  geom_histogram(bins = 300,
+                 fill = 'black') +
+  theme_bw() +
+  theme(axis.title.x = element_markdown(),
+        panel.grid = element_blank()) +
+  labs(x = 'p value<sub>rm</sub>', y = 'count')
+```
+
+### b) hEpidish neutro and Neutrophils
+
+```{r}
+ind = 40
+m1 = corr$measure1[ind]
+m2 = corr$measure2[ind]
+lab1 = "Neutrohil count (normalised)"
+lab2 = "hEpidish neutrophil estimate (normalised)"
+b <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+### c) BCM/Creatinine
+
+```{r}
+ind = 376
+m1 = corr$measure1[ind]
+m2 = corr$measure2[ind]
+lab1 = 'Body cellular mass (normalised)'
+lab2 = 'Creatinine (normalised)'
+c <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+### d) Arginine and cholesterol
+
+```{r}
+ind = 549
+m1 = corr$measure1[ind]
+m2 = gsub("-log", "", corr$measure2[ind])
+m2 = corr$measure2[ind]
+lab1 = 'Cholesterol (normalised)'
+lab2 = 'Arginine (normalised)'
+d <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+### e) GrimAge and Neutrophils
+
+```{r grimage.neutro}
+ind = 43
+m1 = corr$measure1[ind]
+m2 = corr$measure2[ind]
+lab1 = "Neutrohil count (normalised)"
+lab2 = "AgeAccelGrimV2 (normalised)"
+e <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+### f) GrimAge diagram
+
+```{r}
+f <- rmcorr_diag("AgeAccelGrim")
+```
+
+### g) PhenoAge diagram
+
+```{r}
+g <- rmcorr_diag("PhenoAge")
+```
+
+### h) DunedinPACE diagram
+
+```{r}
+h <- rmcorr_diag("Dunedin")
+```
+
+### i) DamAge diagram
+
+```{r}
+i <- rmcorr_diag("DamAge")
+```
+
+
+### j) AdaptAge
+
+```{r}
+j <- rmcorr_diag("AdaptAge")
+```
+
+### k) WID-buccal-BC
+
+```{r}
+k <- rmcorr_diag("buccal_BC")
+```
+
+### l) WID-BC
+
+```{r}
+l <- rmcorr_diag("index_BC")
+```
+
+### m) WID-EC
+
+```{r}
+m <- rmcorr_diag("index_EC")
+```
+
+```{r}
+design <- "
+ABC
+DEF
+GHI
+JKL
+MNN"
+
+plot <- (a+b+c+d+e+f+g+h+i+j+k+l+m + guide_area()) + plot_layout(design = design,guides = 'collect') +
+  plot_annotation(tag_levels = 'a')&
+    theme(plot.tag = element_text(face = 'bold'))
+
+cairo_pdf(here("figures-pdf/e10.pdf"), width = 15,
+          height = 18)
+plot
+dev.off()
+
+```
+
+
+## Extended Data Figure 13
+
+```{r}
+features = 'hematocrit|hemoglobin|ferritin|transferrin|transferrinsat|buccal_ic'
+cairo_pdf(here("out/pdf/e13.pdf"), width = 11, height = 9)
+multi_network_diagram(features = features,
+                      seed = 7)
+dev.off()
+
+```
+
+
+
+## Additional analysis: ASVs
+
+```{r}
+# Loading repeated measures correlation
+load(here('out/rmcorr.Rdata'))
+rmcorr_gen <- rmcorr
+load(here('out/rmcorr_change.Rdata'))
+rmcorr_change <- rmcorr
+rmcorr <- rmcorr_gen
+
+# First: filter those that have consistent sign for change
+rm <- rmcorr |> 
+  dplyr::select(measure1, measure2, assay1, assay2, rmcorr.r, p.vals) |> 
+  dplyr::left_join(dplyr::select(rmcorr_change, measure1, measure2, rmcorr.r, p.vals, assay1, assay2),
+                   by = c('measure1', 'measure2', 'assay1', 'assay2'), suffix = c('', '.change')) |> 
+  dplyr::filter(sign(rmcorr.r) == sign(rmcorr.r.change) | grepl("-log", assay1) | grepl("-log", assay2)) 
+
+# Additional filtering: Exclude visitId
+corr <- rm |> dplyr::filter(!assay1 %in% c('visitId') & !assay2 %in% c('visitId'))
+
+
+# Relabel assays Assay labels for the diagram
+assaylabels <- c("Flow cytometry: white blood cell staining" = "Flow cytometry:\nimmune cells",
+                 "Flow cytometry: T cell staining" = "Flow cytometry:\nimmune cells",
+                 "Blood haemogram" = "Routine\nbloods",
+                 "Skin histology and transepidermal water loss assay" = "Functional\nclinical measures",
+                 "Body composition" = "Body\ncomposition",
+                 "Vascular and body sonography" = "Functional\nclinical measures",
+                 "Composite methylation scores: buccal" = "Buccal\nmethylation",
+                 "Composite methylation scores: cervical" = "Cervical\nmethylation",
+                 "Composite methylation scores: blood" = "Blood\nmethylation",
+                 "Urine nuclear magnetic resonance: normalized" = "Urine\nmetabolome",
+                 "Saliva nuclear magnetic resonance: normalized" = "Saliva\nmetabolome",
+                 "Saliva nuclear magnetic resonance: normalized-log" = "Saliva\nmetabolome-log",
+                 "Urine nuclear magnetic resonance: normalized-log" = "Urine\nmetabolome-log",
+                 "Saliva microbiome: families" = "Saliva\nmicrobiome",
+                 "Stool microbiome: families" = "Stool\nmicrobiome",
+                 "Immune age: general" = "Immune\nage")
+
+
+corr <- corr |> 
+  dplyr::mutate(assay1 = recode(assay1, !!! assaylabels),
+                assay2 = recode(assay2, !!! assaylabels))
+
+
+corr <- corr |> 
+  dplyr::mutate(assay1 = case_when((grepl("exam", assay1) & !grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", measure1)) ~ "Routine\nbloods",
+                                   ((grepl("exam", assay1) & grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", measure1)) | grepl("pwv|imt|plaque", measure1)) ~ "Functional\nclinical measures",
+                                   grepl("bmi|weight|scfat|vifat|bcm|ecw|fm", measure1) ~ "Body\ncomposition",
+                                   TRUE ~ assay1),
+                assay2 = case_when((grepl("exam", assay2) & !grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", measure2)) ~ "Routine\nbloods",
+                                   ((grepl("exam", assay2) & grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", measure2)) | grepl("pwv|imt|plaque", measure2)) ~ "Functional\nclinical measures",
+                                   grepl("bmi|weight|scfat|vifat|bcm|ecw|fm", measure2) ~ "Body\ncomposition",
+                                   TRUE ~ assay2))
+
+# Filter obvious 'self correlations'
+corr <- corr |>
+  dplyr::filter(assay1 != assay2 & !(assay1 == 'Immune\nage' & grepl("cytometry", assay2)) & !(assay2 == 'Immune\nage' & grepl("cytometry", assay1))) |>
+  dplyr::filter(!(grepl("Saliva\nmicrobiome", assay1) & grepl("Saliva\nmicrobiome", assay2))) |> 
+  dplyr::filter(!(grepl("Stool\nmicrobiome", assay1) & grepl("Stool\nmicrobiome", assay2))) |> 
+  dplyr::filter(!(grepl("Saliva\nmetabolome", assay1) & grepl("Saliva\nmetabolome", assay2))) |> 
+  dplyr::filter(!(grepl("Urine\nmetabolome", assay1) & grepl("Urine\nmetabolome", assay2)))
+
+corr <- corr |> 
+  # dplyr::mutate(padj = p.adjust(p.vals, method = 'fdr')) |> 
+  # dplyr::filter(padj < 0.2)
+  dplyr::filter(p.vals < 0.01) |> 
+  dplyr::filter(!(grepl("metabolome", assay1) & !grepl("log", assay1)) & !(grepl("metabolome", assay2) & !grepl("log", assay2)))
+
+
+# Buccal ic-------------------------
+x <- corr[grepl("buccal_ic", corr$measure1) | grepl("buccal_ic", corr$measure2),] |> 
+  dplyr::mutate(feature = ifelse(grepl("buccal_ic", measure1), measure2, measure1)) |> 
+  tidyr::separate(feature, "_", into = c(NA, "feature"), extra = 'merge') |> 
+  dplyr::filter(grepl("ASV|famil", measure1) | grepl("ASV|famil", measure2))
+
+ASVtable_saliva <- readRDS("~/Dropbox/tg-data-prep/prep-scripts/11-preprocessed/2-microbiome/6-study-arm-subsets/if1/0-output/ASVtable_saliva_IK.Rds")
+ASVtable_stool <- readRDS("~/Dropbox/tg-data-prep/prep-scripts/11-preprocessed/2-microbiome/6-study-arm-subsets/if1/0-output/ASVtable_stool_IK.Rds")
+ASV <- plyr::rbind.fill(ASVtable_saliva, ASVtable_stool)
+
+tmp <- ASV[match(x$feature, ASV$OTU),] |> 
+  dplyr::select(OTU, Phylum:Species)
+
+x <- x |> 
+  dplyr::left_join(tmp, by = c('feature' = 'OTU'))
+
+# # Example plots
+# ind = 6
+# m1 = x$measure1[ind]
+# m2 = x$measure2[ind]
+# lab1 = m1
+# lab2 = m2
+# rmcorr_plot(m1, m2, lab1, lab2)
+
+# Cervical ic-------------------------
+
+x <- corr[grepl("cervical_ic", corr$measure1) | grepl("cervical_ic", corr$measure2),] |> 
+  dplyr::mutate(feature = ifelse(grepl("cervical_ic", measure1), measure2, measure1)) |> 
+  tidyr::separate(feature, "_", into = c(NA, "feature"), extra = 'merge') |> 
+  dplyr::filter(grepl("ASV|famil", measure1) | grepl("ASV|famil", measure2))
+
+ASVtable_saliva <- readRDS("~/Dropbox/tg-data-prep/prep-scripts/11-preprocessed/2-microbiome/6-study-arm-subsets/if1/0-output/ASVtable_saliva_IK.Rds")
+ASVtable_stool <- readRDS("~/Dropbox/tg-data-prep/prep-scripts/11-preprocessed/2-microbiome/6-study-arm-subsets/if1/0-output/ASVtable_stool_IK.Rds")
+ASV <- plyr::rbind.fill(ASVtable_saliva, ASVtable_stool)
+
+tmp <- ASV[match(x$feature, ASV$OTU),] |> 
+  dplyr::select(OTU, Phylum:Species)
+
+x <- x |> 
+  dplyr::left_join(tmp, by = c('feature' = 'OTU'))
+
+ind = 7
+m1 = x$measure1[ind]
+m2 = x$measure2[ind]
+lab1 = m1
+lab2 = m2
+rmcorr_plot(m1, m2, lab1, lab2)
+
+```

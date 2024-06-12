@@ -1,0 +1,130 @@
+---
+title: "Variance decomposition"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
+```
+
+
+```{r libs}
+library(dplyr)
+library(here)
+library(ggplot2)
+library(MultiAssayExperiment)
+library(lme4)
+here::i_am("helper-variance-decomposition.qmd")
+```
+
+Here, we partition variance of omic features.
+
+## Preparing the data
+
+First, we load and prepare the normalized data:
+
+```{r}
+load("data/data_normalized.Rdata")
+
+# Removing features with zero variance:
+for (i in 1:length(experiments(data))){
+  experiments(data)[[i]] <- experiments(data)[[i]][apply(assay(data[[i]]), 1, function(x) var(x,na.rm = T) != 0), ]
+}
+
+# Extract relevant omic and covariate data:
+omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 28, 29)
+
+df <- longFormat(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
+                 colDataCols=c("interventionId", "subjectId", "visitId", "age_at_consent", "compliance", "bmi_at_consent")) |> 
+  as.data.frame()
+
+# Removing superfluous variables (non-utilized composite scores, immune populations)
+indices_cerv <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 1)
+indices_buccal <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 2)
+indices_bl <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 3)
+load(here("src/populations_names_annotated.Rdata"))
+populations <- populations |> 
+  dplyr::filter(staining != 't cell stimulation' & main_analysis == 'yes')
+
+df <- df |> 
+  dplyr::filter(!grepl("Composite", assay) | (grepl("Composite", assay) & grepl('cervical', assay) & rowname %in% indices_cerv$x) |
+                  (grepl("Composite", assay) & grepl('buccal', assay) & rowname %in% indices_buccal$x) |
+                  (grepl("Composite", assay) & grepl('blood', assay) & rowname %in% indices_bl$x)) |> 
+  dplyr::filter(!grepl("Flow cytometry", assay) | (grepl("Flow cytometry", assay) & rowname %in% populations$name))
+
+rm(data);gc()
+```
+
+Tidy up factor data:
+
+```{r}
+df$visitId <- factor(as.character(df$visitId), levels = c("M0", "M2", "M4", "M6"))
+df$compliance <- factor(df$compliance, levels = c("low", "medium", "high"))
+df$interventionId <- factor(df$interventionId, levels = c("I", "K"))
+df$subjectId <- factor(df$subjectId)
+df <- df[!is.na(df$value),]
+```
+
+Code unique feature ids by concatenating the assay and feature name:
+
+```{r}
+# feature IDs
+df$featureid <- paste0(df$assay,"_",df$rowname)
+featureid <- unique(df$featureid)
+```
+
+Counting the number of features and number of unique subject to filter featureids that have too few observations:
+
+```{r}
+counts <- df |> 
+  as.data.frame() |> 
+  dplyr::group_by(featureid) |> 
+  dplyr::reframe(n = dplyr::n(),
+                 n_id = length(unique(subjectId))) |> 
+  dplyr::ungroup() |> 
+  dplyr::mutate(ratio = n/n_id) |> 
+  dplyr::filter(ratio > 1.2)
+featureid <- featureid[featureid %in% counts$featureid]
+```
+
+## LMMs for variance decomposition
+
+The below code is parallelized and takes approximately ~4s for 400 features.
+
+```{r}
+out.lmm <- parallel::mclapply(featureid, function(i) {
+    tryCatch(lmer(value ~ visitId*compliance + age_at_consent + bmi_at_consent + interventionId + (1 | subjectId),
+                  data = as.data.frame(df[df$featureid==i,]),
+                  REML = F),
+             error = function(e) return(e))
+}, mc.preschedule = T, mc.cores = 8)
+names(out.lmm) <- featureid
+save(out.lmm, file = "out/variance_partition_lmm.Rdata") # save intermediate out.lmm (optional)
+```
+
+
+## Extracting the variance from models
+
+```{r}
+# Extract variance
+df.var <- dplyr::bind_rows(lapply(out.lmm, function(x) as.data.frame(insight::get_variance(x))), .id="featureid")
+df.var$f.var.fixed <- df.var$var.fixed/(df.var$var.fixed + df.var$var.random + df.var$var.residual)
+df.var$f.var.random <- df.var$var.random/(df.var$var.fixed + df.var$var.random + df.var$var.residual)
+df.var$f.var.residual <- df.var$var.residual/(df.var$var.fixed + df.var$var.random + df.var$var.residual)
+# Assay group
+df.var <- df.var |>
+  # reframe
+  dplyr::select(featureid, starts_with("f.var")) |>
+  dplyr::mutate(assay = stringr::str_split(featureid, "_", simplify = T)[,1]) |>
+  dplyr::rowwise() |> 
+  dplyr::mutate(icc = f.var.random/sum(f.var.random+f.var.fixed+f.var.residual)) |> 
+  dplyr::ungroup()
+save(df.var, file = "out/variance_partition_df_var.Rdata")
+```
+
+ICC is computed as V ran/V total and visualised for each ome.

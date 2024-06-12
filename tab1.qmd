@@ -1,0 +1,218 @@
+---
+title: "Baseline characteristics (T1, ET1)"
+format:
+  html:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+
+library(dplyr)
+library(gtsummary)
+library(gt)
+library(MultiAssayExperiment)
+
+gtsummary::theme_gtsummary_journal(journal = "jama")
+gtsummary::theme_gtsummary_compact()
+
+load("data/data_raw.Rdata")
+```
+
+
+```{r results='asis'}
+df <- as.data.frame(colData(data)) |> 
+  dplyr::filter(visitId == "M0" & interventionId != "S") |> 
+  dplyr::mutate(smoking_history = case_when(smoking_ever == "yes" ~ "Former smoker",
+                                            smoking_ever == "no" ~ "Never smoker",
+                                            smoking_ever == "unknown" ~ "unknown"),
+                smoking_history = factor(smoking_history, levels = c("Never smoker", "Former smoker", "unknown")),
+                diet = case_when(diet == 'normal' ~ 'normal',
+                                 diet != 'unknown' ~ 'vegetarian/vegan/pescetarian',
+                                 diet == 'unknown' ~ 'unknown'),
+                diet = factor(diet, levels = c("normal", 'vegetarian/vegan/pescetarian', 'unknown')),
+                interventionId = ifelse(interventionId == 'I', 'Intermittent fasting<br>',
+                                        'Intermittent fasting<br>plus MCT'),
+                activity = case_when(is.na(intactcurr) ~ "unknown",
+                                     intactcurr %in% c("0") ~ "no intense activity",
+                                     intactcurr %in% c("30 min", "1 h", "1.5 h", "2 h") ~ "30-149 min",
+                                     TRUE ~ "≥150 min"),
+                activity = factor(activity, levels = c("no intense activity", "30-149 min", "≥150 min", "unknown"))) |> 
+  dplyr::select(subjectId, age_at_consent, bmi_at_consent, mpstatrs, interventionId, diet, smoking_history, activity)
+
+baseline <- as.data.frame(wideFormat(data[c("sysbp", "diabp", "cholesterol", "triglycerides", "hba1c", "glucose", "hemoglobin"),,
+                            c('Functional sports exam', 'Blood haemogram')], colDataCols = c("visitId", "subjectId"))) |> 
+  dplyr::filter(visitId == "M0") 
+
+df <- df |> 
+  dplyr::left_join(baseline, by = 'subjectId')|> 
+  dplyr::select(-c(subjectId, primary, visitId)) |> 
+  dplyr::mutate(Functional.sports.exam_diabp = as.numeric(Functional.sports.exam_diabp)) 
+
+# df2 <- df |> 
+#   dplyr::mutate(elevated_sysbp = ifelse(Functional.sports.exam_sysbp > 140, "Yes", "No"),
+#                 elevated_diabp = ifelse(Functional.sports.exam_diabp > 90, "Yes", "No"),
+#                 elevated_bp = ifelse(Functional.sports.exam_sysbp > 140 & Functional.sports.exam_diabp > 90, "Yes", "No"),
+#                 high_glucose = ifelse(Functional.sports.exam_glucose > 100, "Yes", "No"),
+#                 high_cholesterol = ifelse(Functional.sports.exam_cholesterol > 240, "Yes", "No"),
+#                 high_triglycerides = ifelse(Functional.sports.exam_triglycerids > 200, "Yes", "No"))
+
+
+t1 <- df |> 
+  gtsummary::tbl_summary(by = 'interventionId',
+                         type = list(Functional.sports.exam_diabp ~ "continuous"),
+                         label = c(age_at_consent = 'Age at consent',
+                                   bmi_at_consent = 'BMI at consent (kg/m²)',
+                                   smoking_history = 'Smoking history',
+                                   diet = 'Dietary preference',
+                                   activity = "Weekly intense activity (min)",
+                                   mpstatrs = 'Postmenopausal',
+                                   Functional.sports.exam_sysbp = "Systolic blood pressure (mmHg)",
+                                   Functional.sports.exam_diabp = "Diastolic blood pressure (mmHg)",
+                                   Functional.sports.exam_cholesterol = "Total cholesterol (mg/dL)",
+                                   Functional.sports.exam_triglycerides = "Triglycerides (mg/dL)",
+                                   Functional.sports.exam_hba1c = "HbA1c (%)",
+                                   Functional.sports.exam_glucose = "Fasting glucose (mg/dL)",
+                                   Blood.haemogram_hemoglobin = "Haemoglobin (g/dL)"),
+                         digits = all_continuous() ~ 1,
+                         missing = "no",
+                         statistic = list(all_continuous() ~ "{mean} ({sd})",
+                                          Functional.sports.exam_triglycerides ~ "{median} ({IQR})")) |> 
+  gtsummary::add_overall() |> 
+  gtsummary::bold_labels() |> 
+  modify_header(update = all_stat_cols() ~"<b>{level}</b><br>n = {n}") |> 
+  modify_header(update = stat_0 ~ "<b>{level}</b><br><br>n = {n}")
+
+
+t2 <- t1 |> 
+  gtsummary::as_gt() |> 
+  # gt::opt_stylize(style = 5) |> 
+  gt::tab_options(
+    table.width = px(650),
+    table.font.size = 12,
+    column_labels.font.size = 13,
+    table.font.names = "Helvetica"
+  ) |> 
+  gt::opt_stylize(style = 3) |> 
+  gtExtras::gt_add_divider(columns = "stat_0", sides = "right",
+                           style = 'solid', weight = px(1))
+  
+
+t2
+
+# gt::gtsave(t2, file = "out/tab1.html")
+# pagedown::chrome_print("out/tab1.html",output =
+#                        "out/tab1.pdf")
+```
+
+
+# By compliance group (Supplementary)
+
+```{r}
+df <- as.data.frame(colData(data)) |> 
+  dplyr::filter(visitId == "M0" & interventionId != "S" & is.na(dropout_date)) |> 
+  dplyr::mutate(smoking_history = case_when(smoking_ever == "yes" ~ "Former smoker",
+                                            smoking_ever == "no" ~ "Never smoker",
+                                            smoking_ever == "unknown" ~ "unknown"),
+                smoking_history = factor(smoking_history, levels = c("Never smoker", "Former smoker", "unknown")),
+                diet = case_when(diet == 'normal' ~ 'normal',
+                                 diet != 'unknown' ~ 'vegetarian/vegan/pescetarian',
+                                 diet == 'unknown' ~ 'unknown'),
+                diet = factor(diet, levels = c("normal", 'vegetarian/vegan/pescetarian', 'unknown')),
+                mpstatrs = gsub("[*]", "", mpstatrs),
+                interventionId = ifelse(interventionId == 'I', 'Intermittent fasting<br>',
+                                        'Intermittent fasting<br>plus MCT'),
+                activity = case_when(is.na(intactcurr) ~ "unknown",
+                                     intactcurr %in% c("0") ~ "no intense activity",
+                                     intactcurr %in% c("30 min", "1 h", "1.5 h", "2 h") ~ "30-149 min",
+                                     TRUE ~ "≥150 min"),
+                activity = factor(activity, levels = c("no intense activity", "30-149 min", "≥150 min", "unknown")),
+                compliance = paste0(compliance, "<br>compliance"),
+                compliance = factor(compliance, levels = c("high<br>compliance",
+                                                           "medium<br>compliance",
+                                                           "low<br>compliance")),
+                dropout = ifelse(is.na(dropout_date), "no", "yes")) |> 
+  dplyr::select(subjectId, age_at_consent, bmi_at_consent, mpstatrs, interventionId, diet, smoking_history, activity, compliance)
+
+# table(df$compliance, df$dropout)
+
+baseline <- as.data.frame(wideFormat(data[c("sysbp", "diabp", "cholesterol", "triglycerides", "hba1c", "glucose", "hemoglobin"),,
+                            c('Functional sports exam', 'Blood haemogram')], colDataCols = c("visitId", "subjectId"))) |> 
+  dplyr::filter(visitId == "M0") 
+
+df <- df |> 
+  dplyr::left_join(baseline, by = 'subjectId')|> 
+  dplyr::select(-c(subjectId, primary, visitId)) |> 
+  dplyr::mutate(Functional.sports.exam_diabp = as.numeric(Functional.sports.exam_diabp)) 
+st1a <- df |> 
+  dplyr::filter(interventionId == 'Intermittent fasting<br>') |> 
+  dplyr::select(-interventionId) |> 
+  gtsummary::tbl_summary(by = 'compliance',
+                         type = list(Functional.sports.exam_diabp ~ "continuous"),
+                         label = c(age_at_consent = 'Age at consent',
+                                   bmi_at_consent = 'BMI at consent (kg/m²)',
+                                   smoking_history = 'Smoking history',
+                                   diet = 'Dietary preference',
+                                   activity = "Weekly intense activity (min)",
+                                   mpstatrs = 'Postmenopausal',
+                                   Functional.sports.exam_sysbp = "Systolic blood pressure (mmHg)",
+                                   Functional.sports.exam_diabp = "Diastolic blood pressure (mmHg)",
+                                   Functional.sports.exam_cholesterol = "Total cholesterol (mg/dL)",
+                                   Functional.sports.exam_triglycerides = "Triglycerides (mg/dL)",
+                                   Functional.sports.exam_hba1c = "HbA1c (%)",
+                                   Functional.sports.exam_glucose = "Fasted glucose (mg/dL)",
+                                   Blood.haemogram_hemoglobin = "Haemoglobin (g/dL)"),
+                         digits = all_continuous() ~ 1,
+                         missing = "no",
+                         statistic = list(all_continuous() ~ "{mean} ({sd})",
+                                          Functional.sports.exam_triglycerides ~ "{median} ({IQR})")) |> 
+  gtsummary::bold_labels() |> 
+  modify_header(update = all_stat_cols() ~"<b>{level}</b><br>n = {n}")
+
+
+st1b <- df |> 
+  dplyr::filter(interventionId != 'Intermittent fasting<br>') |> 
+  dplyr::select(-interventionId) |> 
+  gtsummary::tbl_summary(by = 'compliance',
+                         type = list(Functional.sports.exam_diabp ~ "continuous"),
+                         label = c(age_at_consent = 'Age at consent',
+                                   bmi_at_consent = 'BMI at consent (kg/m²)',
+                                   smoking_history = 'Smoking history',
+                                   diet = 'Dietary preference',
+                                   activity = "Weekly intense activity (min)",
+                                   mpstatrs = 'Postmenopausal',
+                                   Functional.sports.exam_sysbp = "Systolic blood pressure (mmHg)",
+                                   Functional.sports.exam_diabp = "Diastolic blood pressure (mmHg)",
+                                   Functional.sports.exam_cholesterol = "Total cholesterol (mg/dL)",
+                                   Functional.sports.exam_triglycerides = "Triglycerides (mg/dL)",
+                                   Functional.sports.exam_hba1c = "HbA1c (%)",
+                                   Functional.sports.exam_glucose = "Fasted glucose (mg/dL)",
+                                   Blood.haemogram_hemoglobin = "Haemoglobin (g/dL)"),
+                         digits = all_continuous() ~ 1,
+                         missing = "no",
+                         statistic = list(all_continuous() ~ "{mean} ({sd})",
+                                          Functional.sports.exam_triglycerides ~ "{median} ({IQR})")) |> 
+  gtsummary::bold_labels() |> 
+  modify_header(update = all_stat_cols() ~"<b>{level}</b><br>n = {n}")
+
+st1 <- gtsummary::tbl_merge(list(st1a, st1b),
+                     tab_spanner = c("<b>Intermittent fasting</b>",
+                                     "<b>Intermittent fasting with MCT</b>"))
+st1 <- st1 |> 
+  gtsummary::as_gt() |> 
+  # gt::opt_stylize(style = 5) |> 
+  gt::tab_options(
+    table.width = px(700),
+    table.font.size = 12,
+    column_labels.font.size = 13,
+    table.font.names = "Helvetica"
+  ) |> 
+  gt::opt_stylize(style = 3) |> 
+  gtExtras::gt_add_divider(columns = "stat_3_1", sides = "right",
+                           style = 'solid', weight = px(1))
+
+gt::gtsave(st1, file = "out/stab1.html")
+pagedown::chrome_print("out/stab1.html",output =
+                       "out/stab1.pdf")
+
+```

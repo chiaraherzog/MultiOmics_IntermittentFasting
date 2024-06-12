@@ -1,0 +1,64 @@
+---
+title: "corr ~ age at baseline"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(dplyr)
+library(ggplot2)
+here::i_am("helper-corr-age-at-baseline.qmd")
+source("src/corrAgeBaseline.R")
+```
+
+This script is to compute the correlation with age at baseline for all features.
+
+# Load data
+
+Normalized data are loaded.
+
+```{r getdata, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::filter(visitId == "M0" & interventionId != "S") |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# remove full data
+rm(data);gc()
+```
+
+# Compute correlation at baseline
+
+```{r, eval = F}
+corr <- corrAgeBaseline(df)
+
+save(corr, file = "out/corrAgeBaseline.R")
+```
+
+# Visualise histogram of p values for correlation with age
+
+```{r plot.cor, fig.width = 10, fig.height = 12, eval = T}
+load("out/corrAgeBaseline.R")
+corr |> 
+  dplyr::mutate(assay = stringr::str_wrap(stringr::str_split(rowname, "_", simplify = T)[,1], width = 20)) |> 
+  ggplot(aes(x = p)) +
+  geom_histogram(bins = 50) +
+  facet_wrap(~assay,
+             scales = 'free_y',
+             nrow = 5)
+```
+

@@ -1,0 +1,140 @@
+---
+title: "Baseline association with BMI change"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(dplyr)
+library(ggplot2)
+library(here)
+library(MultiAssayExperiment)
+here::i_am("helper-bmi.qmd")
+```
+
+This script is to explore the association of baseline characteristics and BMI change.
+
+# ∆ BMI
+
+## Load data
+
+Raw data are loaded.
+
+```{r getdata, eval = F}
+load("data/data_normalized.Rdata")
+load("src/vars.Rdata")
+
+df <- longFormat(data[,data@colData$interventionId != 'S' & data@colData$visitId=='M0',], 
+                 colDataCols = c('interventionId', 'visitId', 'subjectId', 'compliance',
+                                 'dropout_date', 'mpstatrs',
+                                 'bmi_at_consent',
+                                 'etoh_curr', 'etohu_curr',
+                                 'age_at_consent', 'intactcurr')) |> 
+  as.data.frame() |> 
+  dplyr::inner_join(dplyr::select(vars, x, assay), by = c("rowname" = "x",
+                                                          "assay" = "assay")) |> 
+  dplyr::mutate(mpstatrs = gsub("[*]", "", mpstatrs),
+                x = paste0(assay, "_", rowname)) |> 
+  tidyr::pivot_wider(names_from = x,
+                     values_from = value,
+                     id_cols = c(interventionId, visitId, subjectId, compliance, dropout_date, mpstatrs, etoh_curr, age_at_consent, intactcurr))
+
+load("data/data_baseline_change.Rdata")
+
+outcome <- wideFormat(data['bmi',data@colData$interventionId != 'S' & data@colData$visitId=='M6',],
+                       colDataCols = 'subjectId') |> 
+  as.data.frame() |> 
+  dplyr::rename(change = Body.composition_bmi) |> 
+  dplyr::select(subjectId, change)
+
+features <- df |> 
+  dplyr::select(-c(compliance, subjectId, interventionId, visitId, dropout_date))
+
+# prediction of WID_smk change
+ids_complete <- outcome$subjectId
+df2 <- features[match(ids_complete, df$subjectId),]
+
+pb <- txtProgressBar(min = 0, max = ncol(features), style = 3,
+                      width = 50)
+ 
+assoc <- lapply(1:ncol(df2), function(j){
+   
+   setTxtProgressBar(pb, j)
+   
+   a <- df2[,j][!is.na(df2[,j])]
+   b <- outcome$change[!is.na(df2[,j])]
+   
+ tryCatch(if(is.numeric(a)){
+     cor.test(b, a, method = 'spearman')$p.value
+   } else {
+     kruskal.test(b, a)$p.value
+   }, error = function(e){"NA"})
+ })
+
+names(assoc) <- colnames(df2)
+ 
+assoc_cor <- as.data.frame(t(as.data.frame(assoc))) |> 
+   dplyr::filter(!is.na(V1) & V1 != 'NA') |> 
+  tibble::rownames_to_column('x')
+
+save(assoc_cor, file = here('out/assoc_cor_bmi.Rdata'))
+```
+
+```{r}
+t <- assoc_cor |> 
+  dplyr::filter(!grepl("ASV", x)) |> 
+  dplyr::mutate(padj = p.adjust(V1))
+
+
+t |> 
+  ggplot(aes(x = V1)) +
+  geom_histogram(bins = 100)
+```
+
+# Export as ET11
+
+```{r}
+load(here("src/vars.Rdata"))
+load(here('out/assoc_cor_bmi.Rdata'))
+
+vars <- vars |> 
+    dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label))
+  
+assoc_clean <- assoc_cor |> 
+  dplyr::filter(!grepl("ASV", x)) |> 
+  dplyr::rename(feature = x) |> 
+  dplyr::mutate(padj = p.adjust(V1)) |> 
+  dplyr::mutate(feature = ifelse(grepl("smoking_py|cig_curr|mpstatrs|etoh_curr|age_at_consent|intactcurr|bmi_at_consent", feature), paste0("Basic characteristics_", feature), feature))  |> 
+  tidyr::separate(feature, "_", into = c("assay", "x"),
+                  extra = 'merge') |> 
+  dplyr::select(-padj) |> 
+  dplyr::mutate(assay = gsub("[.][.]", ": ", assay),
+                assay = gsub("[.]", " ", assay)) |>
+  dplyr::left_join(dplyr::select(vars, x, assay, assay2, label), by = c('x' = 'x',
+                                        'assay' = 'assay')) |>
+          dplyr::mutate(variable = ifelse(!is.na(label), label, x),
+                        assay = ifelse(!is.na(assay2), assay2, assay)) |>
+          dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
+  dplyr::relocate(assay, variable) |> 
+  dplyr::mutate(variable = case_when(variable == 'smoking_py' ~ 'Smoking pack years (at consent)',
+                                     variable == 'bmi_at_consent' ~ "BMI at consent",
+                                     variable == 'mpstatrs' ~ 'Menopause status (at consent)',
+                                     variable == 'age_at_consent' ~ 'Age (at consent)',
+                                     variable == 'cig_curr' ~ 'Cigarettes/d (at consent)',
+                                     variable == 'etoh_curr' ~ 'Alcohol use (y/n, at consent)',
+                                     variable == 'intactcurr' ~ 'Intense activity/week (at consent)',
+                                     TRUE ~ variable))
+
+writexl::write_xlsx(assoc_clean, path = here("out/Extended-Data-Table-11.xlsx"))
+
+```
+

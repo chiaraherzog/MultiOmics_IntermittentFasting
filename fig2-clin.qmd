@@ -1,0 +1,636 @@
+---
+title: "Clinical data (F2, ED3, S1)"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+# Figures
+
+::: {.panel-tabset}
+
+## Main figure 2
+
+![](figures-png/figure2-clinical.png)
+
+## Extended data figure 3
+
+![](figures-png/e3.png)
+
+## Extended data figure 4
+
+![](figures-png/e4-iron.png)
+
+## Supplementary figure 1
+
+![](figures-png/suppl-figure1.png)
+
+:::
+
+# Code
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+```{r libs, eval = F}
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ggtext)
+library(broom)
+library(ComplexHeatmap)
+library(here)
+library(MultiAssayExperiment)
+library(RColorBrewer)
+library(viridis)
+```
+
+```{r colors, eval = F}
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+```
+
+```{r functions, eval = F}
+source("src/paired_longitudinal_compliance.R")
+source("src/lmm.R")
+source("src/plot_lmm_heatmap_v3.R")
+source("src/paired_change_compliance.R")
+source("src/comparison_plots.R")
+```
+
+```{r path, eval = F}
+here::i_am("fig2-clin.qmd")
+```
+
+```{r lmmdata, eval = F}
+# Load lmm data
+load("out/out_lmm_factor.Rdata")
+```
+
+
+```{r load.data.vars, eval = F}
+# select clinical variables of interest
+vars <- read.table("src/clinical_variables.csv", header = T, sep = ',') |> dplyr::pull(x)
+
+load("data/data_raw.Rdata")
+df_raw <- as.data.frame(longFormat(data[vars,,],
+                                   colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'mpstatrs', 'pattern'))) |> 
+  dplyr::filter(!is.na(value))
+
+df_raw <- df_raw |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')))
+
+# Load data (change, raw)
+load("data/data_baseline_change.Rdata")
+df_change <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+
+df_change <- df_change |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')))|> 
+  dplyr::filter(!is.na(value))
+
+# Load data (normalised)
+load("data/data_normalized.Rdata")
+df_scaled <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+
+df_scaled <- df_scaled |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')))|> 
+  dplyr::filter(!is.na(value))
+
+
+# Load data (change, normalised)
+load("data/data_normalized_baseline.Rdata")
+df_change_scaled <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+
+df_change_scaled <- df_change_scaled |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')))|> 
+  dplyr::filter(!is.na(value))
+```
+
+## Main figure 2
+
+### a-l) Linear modeling and main clinical changes
+
+Initially, we illustrate main clinical changes to key variables, such as body mass index, fat mass, subcutaneous fat, or other variables related with cardiovascular activity and health (VO_2 max, HDL).
+
+```{r main.bmi, fig.width = 12, fig.height = 7, eval = F}
+# A: Weight ; absolute ------------------
+a <- paired_longitudinal_compliance(df_raw, 'weight', p = 'p.signif',
+                               ylab = "<b>weight</b><br>(kg)")
+
+# B: Weight ; LMM (change) ------------------
+source("src/lmm.R")
+b_mod <- lmm(df_change, variable = 'weight', ylab = "<b>∆ weight (predicted)</b><br>(kg)")
+b <- b_mod$plot + 
+  theme(aspect.ratio = 1.5)
+
+# C: BMI ; absolute ------------------
+c <- paired_longitudinal_compliance(df_raw, 'bmi', p = 'p.signif',
+                               ylab = "<b>BMI</b><br>(kg/m<sup>2</sup>)")
+
+# D: BMI ; LMM (change) ------------------
+d_mod <- lmm(df_change, variable = 'bmi', ylab = "<b>∆ BMI (predicted)</b><br>(kg/m<sup>2</sup>)")
+d <- d_mod$plot + 
+  theme(aspect.ratio = 1.5)
+
+# E: Fat mass ; absolute --------------
+e <- paired_longitudinal_compliance(df_raw, 'fm', p = 'p.signif',
+                               ylab = "<b>fat mass</b><br>(%)",
+                               filter_high = F)
+f_mod <- lmm(df_change, variable = 'fm', ylab = "<b>∆ absolute fat mass (predicted)</b><br>(%)")
+f <- f_mod$plot + 
+  theme(aspect.ratio = 1.5)
+
+# G: SCfat  --------------
+g <- paired_longitudinal_compliance(df_raw, 'scfat', p = 'p.signif',
+                                    nn = 2,
+                               ylab = "<b>subcutaneous fat</b><br>(mm)",
+                               filter_high = T)
+# H: VO2Max --------------
+h <- paired_longitudinal_compliance(df_raw, 'vo2max', p = 'p.signif',
+                                    nn = 2,
+                                    ylab = "<b>VO<sub>2</sub>max</b><br>(ml/min/kg)",
+                               filter_high = T)
+
+# I: Relmax cap --------------
+i <- paired_longitudinal_compliance(df_raw, 'relmaxcap', p = 'p.signif',
+                                            nn = 2,
+                                            ylab = "<b>relative power at peak HR</b><br>(W/kg)",
+                                            filter_high = T) 
+
+# J: HDL --------------
+j <- paired_longitudinal_compliance(df_raw, 'hdl', p = 'p.signif',
+                                    nn = 2,
+                                    ylab = "<b>HDL cholesterol</b><br>(mg/dL)",
+                               filter_high = T)
+
+# K: LDL --------------
+k <- paired_longitudinal_compliance(df_raw, 'ldl', p = 'p.signif',
+                                    nn = 2,
+                                    ylab = "<b>LDL cholesterol</b><br>(mg/dL)",
+                               filter_high = T)
+
+# L: LDH --------------
+l <- paired_longitudinal_compliance(df_raw, 'ldh', p = 'p.signif',
+                                    nn = 2,
+                                    ylab = "<b>lactate dehydrogenase</b><br>(U/L)",
+                               filter_high = T)
+
+
+# Set layout
+layout <- "
+AABCCD
+EFGHIJ"
+
+# patchwork (weight + BMI redundant; keep BMI)
+plot <- (c+d+e+f+g+h+i+j+k+l) +
+  plot_layout(design = layout) +
+  plot_annotation(tag_levels = 'a')
+
+# print
+plot
+```
+
+```{r print.main.bmi, eval = F}
+cairo_pdf("out/pdf/2a-k.pdf", width = 13, height = 7)
+print(plot)
+dev.off()
+```
+
+### k) Overall effects 
+
+To give an overview of changes across all clinical measurements, we can visualise these as a heatmap.
+
+```{r loadlabels, eval = F}
+labels = read.table("src/clinical_variables.csv", header = T, sep = ',')
+```
+
+```{r fragmodel, fig.width = 7.75, fig.height = 8.26, eval = F}
+load("out/out_lmm_factor.Rdata")
+
+p <- plot_lmm_heatmap_v3(lmm_data_time = out_lmm$`Minimal model`,
+                         lmm_data_compliance = out_lmm$`Basic model with BMI`,
+                         lmm_data_int = out_lmm$`Intervention (higher compliance)`,
+                         relabel = labels,
+                         relabel_assay = T,
+                         age_cor = T,
+                         cluster = 'cluster',
+                         padj = F)
+# p
+```
+
+```{r print.fragmodel, eval=F}
+cairo_pdf("out/pdf/2k.pdf", width = 7, height = 8.25)
+print(p)
+dev.off()
+```
+
+### l) PCA and scree plot
+
+For the PCA of clinical data, data are loaded in wide format.
+
+```{r load.pca.dat, eval = F}
+load("data/data_normalized.Rdata")
+vars <- read.table("src/clinical_variables.csv", header = T, sep = ',') |> dplyr::pull(x)
+labels = read.table("src/clinical_variables.csv", header = T, sep = ',')
+labels <-  labels |> 
+  dplyr::add_row(x = 'age_at_consent',
+                 label = 'age at consent')
+
+data_pca <- as.data.frame(wideFormat(data[vars,,],
+                                 colData = c('subjectId', 'interventionId', 'time', 'compliance', 'age_at_consent'))) |> 
+  dplyr::filter(interventionId != "S" & time %in% c(0, 6) & compliance == 'high') |> 
+  tibble::column_to_rownames('primary')
+```
+
+Relabeling column names using label table for easier interpretation.
+
+```{r relabel.pcadat, eval = F}
+# remove superfluous parts of rownames and relabel
+colnames(data_pca) <- gsub("Functional.sports.exam_|Vascular.and.body.sonography_|Body.composition_|Blood.haemogram_|Skin.histology.and.transepidermal.water.loss.assay_", "", colnames(data_pca))
+
+data_pca <- data_pca |> 
+  dplyr::rename_at(vars(labels[labels$x %in% colnames(data_pca),]$x), ~ labels[labels$x %in% colnames(data_pca),]$label)
+```
+
+Running PCA, keeping only complete observations.
+
+```{r run.pca, eval = F}
+library(missMDA)
+library(factoextra)
+library(FactoMineR)
+
+# keep complete observations only
+complete <- data_pca |> 
+  dplyr::group_by(subjectId) |> 
+  dplyr::count() |> 
+  dplyr::filter(n == 2)
+
+dat_pca <- data_pca |> 
+  dplyr::filter(subjectId %in% complete$subjectId) |> 
+  dplyr::mutate(interventionId = ifelse(interventionId == "I", 0, 1)) |> 
+  select_if(is.numeric) |> 
+  dplyr::select_if(~!all(is.na(.))) 
+
+nb <- missMDA::estim_ncpPCA(dat_pca, ncp.max = 10, method.cv = "Kfold", scale=T,verbose = F) # estimate number of dimensions
+dat_pca_imp <- missMDA::imputePCA(dat_pca, ncp = 6, scale = T) # impute missing values
+res.pca <- FactoMineR::PCA(dat_pca_imp$completeObs,graph = F) # perform PCA on the complete obs
+```
+
+Let's look at the contributions:
+
+```{r scree, fig.width=5, fig.height = 4, eval = F}
+l <- factoextra::fviz_screeplot(res.pca,
+                           addlabels = F,
+                            linecolor = NA,
+                           barcolor = cols[1],barfill = cols[1]) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  labs(x = "PC", y = "Percentage of variance explained (%)",
+       subtitle = "", title = "") +
+  theme(aspect.ratio = 1.5) +
+  scale_y_continuous(expand = c(0, 0.1))
+```
+
+```{r print.scree, eval = F}
+cairo_pdf("out/pdf/2l.pdf",
+          width = 3,
+          height = 4)
+plot(l)
+dev.off()
+```
+
+### m) PCA plot (two axes)
+
+```{r pcaplot, fig.width = 4.5, fig.height = 4, eval = F}
+a <- factoextra::fviz_pca_biplot(res.pca,
+                label = 'var',
+                axes = c(1, 2),
+                habillage = as.factor(dat_pca$time),
+                addEllipses = T,
+                pointshape = 19,
+                geom.ind="point", pointsize=1,
+                palette = cols[c(7, 3)],
+                select.var = list(contrib = 5),
+                col.var = 'grey20',
+                repel = T) +
+  theme_bw() +
+  theme(aspect.ratio = 1) +
+  guides(fill = element_blank()) +
+  scale_colour_manual(name = 'month',
+                      values = cols[c(7, 3)],
+                      aesthetics = c('fill', 'colour')) +
+  labs(title = '',
+       x = "PC1", y = "PC2")
+
+print(a)
+```
+
+```{r print.pca, eval = F}
+cairo_pdf("out/pdf/2m.pdf",
+          width = 4.5,
+          height = 4)
+print(a)
+dev.off()
+```
+
+### n-p) Contributions to the PCs
+
+```{r contrib, fig.width=10, fig.height = 12, eval = F}
+contributions <- res.pca$var$contrib |> 
+  as.data.frame() |> 
+  dplyr::select(Dim.1:Dim.4) |> 
+  tibble::rownames_to_column("variable") |> 
+  dplyr::mutate(theo_contrib = 100/length(unique(variable))) |> 
+  tidyr::pivot_longer(Dim.1:Dim.4,
+                      names_to = 'pc',
+                      values_to = 'value') |> 
+  dplyr::left_join(labels, by = c('variable' = 'label'))
+
+assaycols = c("Blood haemogram" = "#ec6669",
+              "Body weight and composition" = "#832c9b",
+              "Spirometry" = "#bd647d",
+              "Functional exercise capacity" = "#f39668",
+              "Blood test" = '#71b5a9',
+              "Skin histology and TEWL" = "#5f70a8",
+              "Vascular features" = '#0d49a1')
+
+pc1 <- contributions |> 
+  dplyr::filter(pc == 'Dim.1') |> 
+  dplyr::arrange(desc(value)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = reorder(variable, -value),
+             y = value)) +
+  geom_col(aes(fill = assay2)) +
+  geom_hline(yintercept = contributions$theo_contrib, colour = cols[4],
+             linetype = 'dashed',
+             linewidth = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 60,hjust = 1),
+        legend.position = 'none') +
+  labs(x = "",
+       y = "Contributions (%)",
+       title = 'PC1') +
+  scale_fill_manual(values = assaycols)
+
+pc2 <- contributions |> 
+  dplyr::filter(pc == 'Dim.2') |> 
+  dplyr::arrange(desc(value)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = reorder(variable, -value),
+             y = value)) +
+  geom_col(aes(fill = assay2)) +
+  geom_hline(yintercept = contributions$theo_contrib, colour = cols[4],
+             linetype = 'dashed',
+             linewidth = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 60,hjust = 1),
+        legend.position = 'none') +
+  labs(x = "",
+       y = "Contributions (%)",
+       title = 'PC2') +
+  scale_fill_manual(values = assaycols)
+
+pc3 <- contributions |> 
+  dplyr::filter(pc == 'Dim.3') |> 
+  dplyr::arrange(desc(value)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = reorder(variable, -value),
+             y = value)) +
+  geom_col(aes(fill = assay2)) +
+  geom_hline(yintercept = contributions$theo_contrib, colour = cols[4],
+             linetype = 'dashed',
+             linewidth = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 60,hjust = 1),
+        legend.position = 'none') +
+  labs(x = "",
+       y = "Contributions (%)",
+       title = 'PC3') +
+  scale_fill_manual(values = assaycols)
+
+
+pc4 <- contributions |> 
+  dplyr::filter(pc == 'Dim.4') |> 
+  dplyr::arrange(desc(value)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = reorder(variable, -value),
+             y = value)) +
+  geom_col(aes(fill = assay2)) +
+  geom_hline(yintercept = contributions$theo_contrib, colour = cols[4],
+             linetype = 'dashed',
+             linewidth = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 60,hjust = 1),
+        legend.position = 'none') +
+  labs(x = "",
+       y = "Contributions (%)",
+       title = 'PC4') +
+  scale_fill_manual(values = assaycols)
+
+
+plot <- (pc1|pc2)/(pc3|pc4) &
+  theme(axis.text.x = element_text(size = 8))
+```
+
+```{r print.contrib, eval = F}
+cairo_pdf("out/pdf/2o-q.pdf", width = 5.5, height = 7)
+print(plot)
+dev.off()
+```
+
+## Extended data figure 3
+
+```{r supplfig.clin, fig.width = 12, fig.height = 20, eval = F}
+a <- paired_longitudinal_compliance(df_change, 'scfat',
+                               nn = 2,
+                               ylab = '<b>∆ subcutaneous fat</b><br>(mm)')
+b <- comparison_plots(df_change, 'scfat', nn = 2, ylab = '<b>∆ subcutaenous fat</b><br>(mm)')
+
+c <- paired_longitudinal_compliance(df_change, 'vifat',
+                               nn = 2,
+                               ylab = '<b>∆ visceral fat</b><br>(mm)')
+d <- comparison_plots(df_change, 'vifat', nn = 2, ylab = '<b>∆ visceral fat</b><br>(mm)')
+
+e <- paired_longitudinal_compliance(df_change, 'ecw',
+                               nn = 4,
+                               ylab = '<b>∆ extracellular water</b><br>(%)',
+                               p = 'p.signif')
+f <- comparison_plots(df_change, 'ecw', nn = 4, ylab = '<b>∆ extracellular water</b><br>(%)')
+
+g <- paired_longitudinal_compliance(df_change, 'bcm',
+                               nn = 4,
+                               ylab = '<b>body cellular mass</b><br>(%)',
+                               p = 'p.signif')
+h <- comparison_plots(df_change, 'bcm', nn = 4, ylab = '<b>∆ body cellular mass</b><br>(%)')
+
+i <- paired_longitudinal_compliance(df_change, 'vo2max',
+                               nn = 2,
+                               ylab = '<b>∆ VO<sub>2</sub>peak</b><br>(ml/min/kg)')
+j <- comparison_plots(df_change, 'vo2max', nn = 2, ylab = '<b>∆ VO<sub>2</sub>peak</b><br>(ml/min/kg)')
+
+k <- paired_longitudinal_compliance(df_change, 'hdl',
+                               nn = 2,
+                               ylab = '<b>∆ HDL cholesterol</b><br>(mg/dL)')
+
+l <- comparison_plots(df_change, 'hdl', nn = 2, ylab = '<b>∆ HDL cholesterol</b><br>(mg/dL)')
+
+m <- paired_longitudinal_compliance(df_change, 'ldl',
+                               nn = 2,
+                               ylab = '<b>∆ LDL cholesterol</b><br>(mg/dL)')
+
+n <- comparison_plots(df_change, 'ldl', nn = 2, ylab = '<b>∆ LDL cholesterol fat</b><br>(mg/dL)')
+
+
+o <- paired_longitudinal_compliance(df_change, 'alat',
+                               nn = 2,
+                               ylab = '<b>∆ ALAT</b><br>(U/L)')
+
+p <- comparison_plots(df_change, 'alat', nn = 2, ylab = '<b>∆ ALAT</b><br>(U/L)')
+
+q <- paired_longitudinal_compliance(df_change, 'uricacid',
+                               nn = 2,
+                               ylab = '<b>∆ uric acid</b><br>(U/L)')
+r <- comparison_plots(df_change, 'uricacid', nn = 2, ylab = '<b>∆ uric acid</b><br>(mg/dL)')
+
+
+s <- paired_longitudinal_compliance(df_change, 'ethickum',
+                                    nn = 2,
+                                     ylab = '<b>∆ epidermal thickness</b><br>(µm)')
+
+design <-"
+AAABCCCD
+EEE#FFF#
+GGG#HHH#
+IIIJKKKL
+MMMNOOOP
+QQQRSSS#"
+
+plot <- (a+b+c+d+e+f+
+           g+h+i+j+k+l+
+           m+n+o+p+q+r+s) +
+  plot_layout(design = design) +
+  plot_annotation(tag_levels = 'a') &
+  theme(aspect.ratio = NULL)
+
+# print(plot)
+```
+
+```{r print.supplementary, eval = F}
+cairo_pdf("figures-pdf/e3.pdf", width = 12, height = 20)
+print(plot)
+dev.off()
+
+
+ggsave(plot,
+       filename = 'figures-png/e3.png',
+       dpi = 600,
+       width = 12,
+       height = 18,
+       unit = 'in')
+```
+
+## Extended Data Figure 4
+
+```{r}
+source(here("src/paired_longitudinal_compliance.R"))
+a <- paired_longitudinal_compliance(df_raw, variable = 'ferritin', nn = 2,
+                               ylab = '<b>Ferritin</b><br>mg/dL') +
+  geom_hline(yintercept = 13, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 150, linetype = 'dashed', colour = 'grey50')
+
+b <- paired_longitudinal_compliance(df_raw, variable = 'transferrin', nn = 2,
+                               ylab = '<b>Transferrin</b><br>mg/dL') +
+  geom_hline(yintercept = 215, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 380, linetype = 'dashed', colour = 'grey50')
+
+c <- paired_longitudinal_compliance(df_raw, variable = 'hemoglobin', nn = 4,
+                               ylab = '<b>Haemoglobin</b><br>g/dL',
+                               p = 'p.signif')  +
+  geom_hline(yintercept = 11.6, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 14, linetype = 'dashed', colour = 'grey50')
+
+d <- paired_longitudinal_compliance(df_raw, variable = 'erythrocytes', nn = 4,
+                               ylab = '<b>erycthrocytes</b>(x 10<sup>12</sup>/L)',
+                               p = 'p.signif') +
+  geom_hline(yintercept = 3.8, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 5.2, linetype = 'dashed', colour = 'grey50')
+
+e <- paired_longitudinal_compliance(df_raw, variable = 'hematocrit', nn = 4,
+                               ylab = '<b>Haematocrit</b><br>%',
+                               p = 'p.signif') +
+  geom_hline(yintercept = 36, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 48, linetype = 'dashed', colour = 'grey50')
+
+
+source(here("src/plotFP.R"))
+
+f <- plotFP(df_raw, variable = 'ferritin', nn = 2,
+                               ylab = '<b>Ferritin</b><br>mg/dL')+
+  geom_hline(yintercept = 13, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 150, linetype = 'dashed', colour = 'grey50')
+
+
+g <- plotFP(df_raw, variable = 'transferrin', nn = 2,
+                               ylab = '<b>Transferrin</b><br>mg/dL') +
+  geom_hline(yintercept = 215, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 380, linetype = 'dashed', colour = 'grey50')
+
+
+h <- paired_longitudinal_compliance(df_raw, variable = 'vitb9', nn = 2,
+                               ylab = '<b>Vitamin B9</b><br>ng/L',
+                               p = 'p.signif') +
+  geom_hline(yintercept = 2, linetype = 'dashed', colour = 'grey50') +
+  geom_hline(yintercept = 20, linetype = 'dashed', colour = 'grey50')
+
+
+plot <- (a|b)/(c|d)/(e|f)/(g|h) +
+  plot_annotation(tag_levels = 'a')
+```
+
+
+```{r}
+cairo_pdf(here("figures-pdf/e4-iron.pdf"), width = 8, height = 12.5)
+print(plot)
+dev.off()
+
+ggsave(plot = plot, filename = here("figures-png/e4-iron.png"), width = 8, height = 13,  unit = 'in',
+       dpi = 300)
+
+```
+
+## Supplementary figure 1
+
+Here we show some examples of compliance and MCT modulation, using the example of fat mass. 
+
+```{r supplementary, fig.width = 8, fig.height = 3.75, eval=F}
+compliance <- paired_longitudinal_compliance(df_change, 'fm',
+                                             p = 'p.signif',
+                                             ylab = "<b>∆ absolute fat mass</b><br>(%)")
+
+intervention <- comparison_plots(df_change,
+                                 'fm',
+                                 ylab = "<b>∆ absolute fat mass</b><br>(%)<br>in highly compliant individuals")
+
+plot <- (compliance | intervention) +
+  plot_annotation(tag_levels = 'a')
+
+print(plot)
+```
+
+```{r print.suppl, eval = F}
+ggsave(plot,
+       filename = 'figures-png/suppl-figure1.png',
+       width = 8,
+       height = 3.75,
+       units = 'in')
+```
+

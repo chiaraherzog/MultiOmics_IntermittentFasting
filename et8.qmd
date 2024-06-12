@@ -1,0 +1,35 @@
+---
+title: "LME (interaction) (ET8)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 8 is the output of linear mixed-effects models run on high compliance individuals, assessing the impact of interventio, in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + smoking pack years + visitId*interventionId + (1|subjectId)`.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r libraries}
+library(dplyr)
+library(here)
+here::i_am('et8.qmd')
+```
+
+
+```{r}
+load(here("out/out_lmm_factor.Rdata"))
+source(here("src/renameVarsLME.R"))
+out_lmm<- renameVarsLME(out_lmm)
+
+DT::datatable(out_lmm[["Intervention (higher compliance)"]] |> 
+                dplyr::filter(!is.na(`p.value_visitIdM6:interventionIdK`)) |> 
+                dplyr::arrange(`p.value_visitIdM6:interventionIdK`) |> 
+                dplyr::select(assay, variable, `estimate_visitIdM4:interventionIdK`,
+                              `estimate_visitIdM4:interventionIdK`,
+                              `estimate_visitIdM6:interventionIdK`,
+                              `p.value_visitIdM2:interventionIdK`,
+                              `p.value_visitIdM4:interventionIdK`,
+                              `p.value_visitIdM6:interventionIdK`))
+```

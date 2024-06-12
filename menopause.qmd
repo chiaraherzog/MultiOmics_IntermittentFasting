@@ -1,0 +1,273 @@
+---
+title: "Effect of menopause"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+# Figures
+
+::: {.panel-tabset}
+
+## Extended data figure X 
+
+to be inserted
+
+:::
+
+# Code
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
+```
+
+```{r libs, eval = F}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(ggtext)
+library(broom)
+library(ComplexHeatmap)
+library(MultiAssayExperiment)
+library(RColorBrewer)
+library(viridis)
+```
+
+```{r colors, eval = F}
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+```
+
+```{r functions, eval = F}
+source('src/comparison_plots_menopause.R')
+source('src/paired_longitudinal_menopause.R')
+source('src/plot_lmm_heatmap_fragmented_menopause.R')
+```
+
+```{r path, eval = F}
+here::i_am("menopause.qmd")
+```
+
+```{r lmmdata, eval = F}
+# Load lmm data
+load("out/out_lmm_factor.Rdata")
+```
+
+## Heatmap summary
+
+* showing any row for which (unadjusted) p-value < 0.05
+* first column mpstat estimate from general model
+* next column time:mpstat interaction terms from interaction model
+
+```{r}
+
+exp_include <- c("Blood haemogram","Body composition",
+                 "Flow cytometry: T cell staining","Flow cytometry: white blood cell staining",
+                 "Composite methylation scores: blood","Composite methylation scores: buccal","Composite methylation scores: cervical","Immune age: general",
+                 "Saliva nuclear magnetic resonance: normalized","Urine nuclear magnetic resonance: normalized",
+                 "Saliva microbiome: families", "Stool microbiome: families")
+
+p <- plot_lmm_heatmap_frag(exp = exp_include,
+                      lmm_data_overall = out_lmm$`Menopause general`,
+                      lmm_data_int = out_lmm$`Menopause interaction`,
+                      FDR = F)
+
+p
+
+```
+
+```{r ext_10a, eval = F}
+
+grDevices::cairo_pdf("out/pdf/ext10a_menopause.pdf", width = 6.25, height = 3.5)
+print(p)
+dev.off()
+
+```
+
+
+## Overall changes
+
+```{r}
+df <- out_lmm$`Menopause general` |> 
+  dplyr::filter(!grepl("ASV", x)) |> 
+  dplyr::arrange(p.value_mpstatrsyes)
+
+hist(df$p.value_mpstatrsyes)
+
+df_m <- df |> dplyr::filter(p.value_mpstatrsyes < 0.05)
+
+```
+
+Some examples:
+
+```{r, fig.width = 5, fig.height = 3}
+load('data/data_raw.Rdata')
+source('src/filter_if.R')
+
+df <- longFormat(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
+  as.data.frame() |> 
+  filter_if()
+
+comparison_plots_menopause(df[grepl('cervical', df$assay),],
+                           variable = 'index_EC_discovery_version_adj', nn = 4, all_months = T,
+                           ylab = 'WID-EC (cervical)')
+comparison_plots_menopause(df[grepl('cervical', df$assay),],
+                           variable = 'relative_epithelial_age_adj', nn = 4, all_months = T,
+                           ylab = 'WID-REA (cervical)')
+# comparison_plots_menopause(df[grepl('cervical', df$assay),],
+#                            variable = 'globalMethylation_line1_adj', nn = 4, all_months = T,
+#                            ylab = 'global LINE1 methylation (cervical)')
+# comparison_plots_menopause(df[grepl('Urine nuclear magnetic resonance: normalized', df$assay),],
+#                            variable = 'Xylose', nn = 4,
+#                            ylab = 'Xylose (urine)')
+# comparison_plots_menopause(df[grepl('Urine nuclear magnetic resonance: normalized', df$assay),],
+#                            variable = 'Alanine', nn = 4,
+#                            ylab = 'Alanine (urine)')
+# comparison_plots_menopause(df[grepl('Saliva nuclear magnetic resonance: normalized', df$assay),],
+#                            variable = 'Isovalerate', nn = 4)
+
+comparison_plots_menopause(df, variable = 'bcm', nn = 4, all_months = T,
+                           ylab = 'body cellular mass')
+comparison_plots_menopause(df, variable = 'triglycerides', nn = 2, all_months = T,
+                           ylab = 'triglycerides')
+comparison_plots_menopause(df, variable = 'segneutrophils', nn = 2, all_months = T,
+                           ylab = 'segmented neutrophils')
+comparison_plots_menopause(df, variable = 'leukocytes', nn = 4, all_months = T,
+                           ylab = 'leukocytes')
+comparison_plots_menopause(df, variable = 'imt_mean', nn = 2, all_months = T,
+                           ylab = 'intima media thickness')
+```
+
+
+```{r ext_10b-c, eval = F}
+
+grDevices::cairo_pdf("out/pdf/ext10b_menopause.pdf", width = 3.25, height = 1.75)
+p <- comparison_plots_menopause(df[grepl('cervical', df$assay),],
+                           variable = 'index_EC_discovery_version_adj', nn = 4, all_months = T,
+                           ylab = 'WID-EC (cervical)')
+print(p)
+dev.off()
+
+grDevices::cairo_pdf("out/pdf/ext10c_menopause.pdf", width = 3.25, height = 1.75)
+p <- comparison_plots_menopause(df[grepl('cervical', df$assay),],
+                           variable = 'relative_epithelial_age_adj', nn = 4, all_months = T,
+                           ylab = 'WID-REA (cervical)')
+print(p)
+dev.off()
+
+```
+
+
+## Menopause influence on intervention changes
+
+```{r}
+df2 <- out_lmm$`Menopause interaction`
+hist(df2$`p.value_visitIdM6:mpstatrsyes`)
+
+df2 <- df2 |> 
+  dplyr::filter(!grepl("ASV", x)) |> 
+  dplyr::mutate(padj = p.adjust(`p.value_visitIdM6:mpstatrsyes`)) |> 
+  dplyr::filter(`p.value_visitIdM6:mpstatrsyes` < 0.05)
+
+load('data/data_baseline_change.Rdata')
+
+df <- longFormat(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
+  as.data.frame() |> 
+  filter_if()
+
+
+plotMenopauseComp <- function(df, variable, nn, title = NULL,
+                              subsetAssay = NULL){
+  
+  if(!is.null(subsetAssay)){
+    df <- df[grepl(subsetAssay, df$assay),]
+  }
+  
+  a <- paired_longitudinal_menopause(df, variable = variable, nn = nn, filter_high = T,
+                                   ylab = title)
+  b <- comparison_plots_menopause(df, variable = variable, nn = nn, all_months = F,
+                                   ylab = paste0("∆ ", title))
+  
+  (a|b) & theme(aspect.ratio = NULL)
+}
+
+
+plotMenopauseComp(df, 'eareaum', nn = 2, title = 'epidermal area')
+plotMenopauseComp(df, variable = 'ic', nn = 4, title = 'buccal ic',
+                  subsetAssay = 'buccal')
+
+plotMenopauseComp(df, variable = 'index_BC_discovery_version_adj', nn = 4, title = 'WID-BC (cervical)',
+                  subsetAssay = 'cervical')
+
+plotMenopauseComp(df, variable = 'index_OC_discovery_version_adj', nn = 4, title = 'WID-OC (cervical)',
+                  subsetAssay = 'cervical')
+
+plotMenopauseComp(df, variable = 'index_CIN_adj', nn = 4, title = 'WID-CIN (cervical)',
+                  subsetAssay = 'cervical')
+
+plotMenopauseComp(df, variable = 'ck', nn = 2, title = 'Creatinine kinase')
+plotMenopauseComp(df, variable = 'pwv', nn = 2, title = 'Pulse wave velocity')
+
+
+plotMenopauseComp(df, variable = 'lymphocytes_single_cells_live_t_cells', nn = 4, title = 'T cells')
+# plotMenopauseComp(df, variable = 'lymphocytes_single_cells_live_t_cells_cd4_t_cells_em', nn = 4, title = 'Tem CD4 cells')
+
+
+plotMenopauseComp(df, variable = 'Taurine', nn = 4, title = 'Taurine (saliva)',
+                  subsetAssay = 'Saliva nuclear magnetic resonance: normalized')
+
+plotMenopauseComp(df, variable = 'Butyricicoccaceae', nn = 4, title = 'Butyricicoccaceae (stool)',
+                  subsetAssay = 'Stool')
+plotMenopauseComp(df, variable = 'Christensenellaceae', nn = 4, title = 'Christensenellaceae (stool)',
+                  subsetAssay = 'Stool')
+plotMenopauseComp(df, variable = 'Bifidobacteriaceae', nn = 4, title = 'Bifidobacteriaceae (stool)',
+                  subsetAssay = 'Stool')
+# plotMenopauseComp(df, variable = 'Rikenellaceae', nn = 4, title = 'Rikenellaceae (stool)',
+#                   subsetAssay = 'Stool')
+
+plotMenopauseComp(df, variable = 'Saccharimonadaceae', nn = 4, title = 'Saccharimonadaceae (saliva)',
+                  subsetAssay = 'Saliva')
+# plotMenopauseComp(df, variable = 'Candidatus_Nanosynbacteraceae', nn = 4, title = 'Candidatus_Nanosynbacteraceae (saliva)',
+#                   subsetAssay = 'Saliva')
+plotMenopauseComp(df, variable = 'Peptococcaceae', nn = 4, title = 'Peptococcaceae (saliva)',
+                  subsetAssay = 'Saliva')
+plotMenopauseComp(df, variable = 'Christensenellaceae', nn = 4, title = 'Christensenellaceae (stool)',
+                  subsetAssay = 'Stool')
+
+
+plotMenopauseComp(df, variable = 'ck', nn = 2, title = 'Creatinine kinase')
+plotMenopauseComp(df, variable = 'pwv', nn = 2, title = 'Pulse wave velocity')
+
+```
+
+```{r ext_10d-g, eval = F}
+
+cairo_pdf("out/pdf/ext10d_menopause.pdf", width = 4.5, height = 1.75)
+p <- plotMenopauseComp(df, variable = 'lymphocytes_single_cells_live_t_cells', nn = 4, title = 'T cells')
+print(p)
+dev.off()
+
+cairo_pdf("out/pdf/ext10e_menopause.pdf", width = 4.5, height = 1.75)
+p <- plotMenopauseComp(df, variable = 'ic', nn = 4, title = 'buccal ic',
+                  subsetAssay = 'buccal')
+print(p)
+dev.off()
+
+cairo_pdf("out/pdf/ext10f_menopause.pdf", width = 4.5, height = 1.75)
+p <- plotMenopauseComp(df, variable = 'Saccharimonadaceae', nn = 4, title = 'Saccharimonadaceae<br>(saliva)',
+                  subsetAssay = 'Saliva')
+print(p)
+dev.off()
+
+cairo_pdf("out/pdf/ext10g_menopause.pdf", width = 4.5, height = 1.75)
+p <- plotMenopauseComp(df, variable = 'Butyricicoccaceae', nn = 4, title = 'Butyricicoccaceae<br>(stool)',
+                  subsetAssay = 'Stool')
+print(p)
+dev.off()
+
+```
+

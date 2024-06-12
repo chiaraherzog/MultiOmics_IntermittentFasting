@@ -1,0 +1,120 @@
+---
+title: "Metabolome annotation"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = F)
+
+# Install RefMet Package if not available
+if(!require("RefMet")){
+  devtools::install_github("metabolomicsworkbench/RefMet")
+}
+
+library(RefMet)
+library(dplyr)
+library(ggplot2)
+library(MultiAssayExperiment)
+```
+
+The metabolome dataset features many different metabolites. What do they do? Here we leverage classification using the `RefMet` package ([Fahy & Subramanian, 2020](https://www.nature.com/articles/s41592-020-01009-y)).
+
+# Workflow
+
+## Load data
+
+First, we load the data in and get all metabolites either in saliva or urine (or both):
+
+```{r loaddata}
+# Load and map metabolome data
+load("data/data_normalized.Rdata")
+
+# get all unique IDs for saliva
+ids_saliva <- unique(rownames(experiments(data)[[28]]))
+ids_saliva[grepl("X3|X5", ids_saliva)] <- gsub("^X", "", ids_saliva[grepl("X3|X5", ids_saliva)])
+ids_saliva <- gsub(".mM", "", ids_saliva)
+ids_saliva <- gsub("TMA..N.oxide", "Trimethylamine N-oxide", ids_saliva)
+
+# get all unique IDs for urine
+ids_urine <- unique(rownames(experiments(data)[[29]]))
+ids_urine[grepl("X1|X2|X3|X4|X5", ids_urine)] <- gsub("^X", "", ids_urine[grepl("X1|X2|X3|X4|X5", ids_urine)])
+```
+
+## Prepare input and run RefMet
+
+The RefMet package requires a .txt input, so we save our list of metabolites and run refmet_map to map the data.
+
+```{r saveandrefmet}
+# write to txt for RefMet
+write.table(c("NAME", ids_saliva),
+            file = "metab_list_saliva.txt", sep = ",",quote = F, row.names = F, col.names = F)
+file <- "metab_list_saliva.txt"
+RefMet_mapped_saliva <- refmet_map(file)
+saveRDS(RefMet_mapped_saliva, file="out/RefMet_mapped_saliva.Rds")
+
+# write to txt for RefMet
+write.table(c("NAME", ids_urine),
+            file = "metab_list_urine.txt", sep = ",",quote = F, row.names = F, col.names = F)
+file <- "metab_list_urine.txt"
+RefMet_mapped_urine <- refmet_map(file)
+RefMet_mapped_urine <- RefMet_mapped_urine |> 
+  dplyr::mutate(Standardized.name = case_when(Input.name == 't.Methylhistidine' ~ "1-Methylhistidine",
+                                           TRUE ~ Standardized.name))
+saveRDS(RefMet_mapped_urine, file="out/RefMet_mapped_urine.Rds")
+
+```
+
+# Overview of metabolites (RefMet)
+
+```{r, eval = T}
+library(here)
+RefMet_mapped_saliva <- readRDS(here("out/RefMet_mapped_saliva.Rds"))
+RefMet_mapped_saliva |> 
+  DT::datatable()
+
+RefMet_mapped_urine <- readRDS(here("out/RefMet_mapped_urine.Rds"))
+RefMet_mapped_urine |> 
+  DT::datatable()
+```
+
+
+# Diagrams 
+
+We can now take a look at the classes of metabolites in the samples (urine only, both, or saliva only.)
+
+::: {.panel-tabset}
+
+## Overview of metabolites
+
+Overall metabolites (either shared only found in one of the samples)
+
+```{r, eval = T}
+RefMet_mapped_urine |> group_by(Super.class) |> 
+  summarise(n = n()) |> 
+  mutate(freq = n / sum(n)) |> 
+  ggplot(aes(x = "",
+             y = freq,
+             fill = Super.class)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() 
+
+RefMet_mapped_saliva |> group_by(Super.class) |> 
+  summarise(n = n()) |> 
+  mutate(freq = n / sum(n)) |> 
+  ggplot(aes(x = "",
+             y = freq,
+             fill = Super.class)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() 
+```
+
+
+
+:::

@@ -1,0 +1,757 @@
+---
+title: "Immune and metabolome data (F4, ED5/6)"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+# Figures
+
+::: {.panel-tabset}
+
+## Main figure 4
+
+![](figures-png/figure4-imm-metab.png)
+
+## Extended Data Figure 6
+
+![](figures-png/e6.png)
+
+## Extended Data Figure 7
+
+![](figures-png/e7.png)
+
+:::
+
+# Code
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+
+# libraries
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(treemapify)
+library(ggtext)
+library(here)
+library(ggrepel)
+library(broom)
+library(ComplexHeatmap)
+library(MultiAssayExperiment)
+library(RColorBrewer)
+library(viridis)
+
+library(missMDA)
+library(factoextra)
+library(FactoMineR)
+
+library(tidytree)
+library(ggtree)
+library(data.tree)
+
+# colours
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+
+# functions
+source("src/filter_if.R")
+source("src/paired_longitudinal_compliance.R")
+source("src/lmm.R")
+source("src/plot_heatmap_Metab.R")
+source("src/longitudinal.R")
+source("src/comparison_plots.R")
+
+source("src/plot_lmm_heatmap_v3.R")
+source("src/pca.R")
+source("src/pcaHeatmap.R")
+source("src/pcaBiplot.R")
+
+# path
+here::i_am("fig4-imm-metabolome.qmd")
+```
+
+```{r data}
+# Load lmm data
+load("out/out_lmm_factor.Rdata")
+
+# [IMMUNE]
+load("src/populations_names_annotated.Rdata")
+
+# exclude some 'duplicate' populations from WB staining
+exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd8_t_cells_freq_of_parent")
+
+populations <- populations |> 
+  dplyr::filter(main_analysis == 'yes') |> 
+  dplyr::filter(!name %in% exclude) |> 
+  dplyr::rename(pop_name = `second name`)
+
+# [METABOLOME]
+# Load t-test data
+load(here("out/wilcoxon-tests.Rdata"))
+
+# Load annotation of metabolites
+ref_saliva <-  readRDS("out/RefMet_mapped_saliva.Rds")
+ref_urine <-  readRDS("out/RefMet_mapped_urine.Rds")
+```
+
+## Main figure 
+
+### a) ImmuneAge coefficients
+
+```{r immage.coef}
+load("out/ImmAge_gen_coef.Rdata") # ImmAge_gen_coef
+
+tmp <- ImmAge_gen_coef |> 
+  dplyr::left_join(dplyr::select(populations, name, `second name`)) |> 
+  dplyr::rename(pop_name = `second name`) |> 
+  dplyr::mutate(pop_name = gsub("[+]", "<sup>+</sup>", pop_name),
+                pop_name = gsub("[-]", "<sup>-</sup>", pop_name),
+                pop_name = gsub("REG", "<sub>REG</sup>", pop_name))
+
+immage <- tmp |> 
+  dplyr::mutate(col = ifelse(sign(s1) == 1, '(+)', '(-)')) |> 
+  ggplot(aes(x = s1,
+             y = forcats::fct_reorder(pop_name, abs(s1)))) +
+  geom_segment(aes(x = 0, xend = s1,
+                   y = pop_name, yend = pop_name),
+               alpha = 0.5) +
+  geom_vline(xintercept = 0,
+             linetype = 'dotted',
+             colour = 'grey60') +
+  geom_point(aes(colour = col),
+             size = 1.5,
+             alpha = 0.8) +
+  theme_bw() +
+  theme(axis.text.y = element_markdown(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        legend.position = 'inside',
+        legend.position.inside = c(0.75, 0.2),
+        legend.background = element_blank())  +
+  labs(x = 'ImmuneAge weight',
+       y = '') +
+  scale_x_continuous(expand = c(0.025, 0.025)) +
+  scale_colour_manual(values = cols[c(5, 7)],
+                      name = '')
+```
+
+```{r print.immage.coef}
+cairo_pdf(here("out/pdf/4a.pdf"),
+          width = 3, height = 2.5)
+print(immage)
+dev.off()
+```
+
+### b) ImmAge correlation with age
+
+```{r immage}
+load(here("data/data_raw.Rdata"))
+
+df <- longFormat(data[,,30], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+  as.data.frame() |> 
+  dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) 
+
+labx <- '<b>Age at baseline</b>'
+laby <- '<b>ImmuneAge</b>'
+
+immage <- df |> 
+  dplyr::filter(rowname == 'ImmAge_gen') |> 
+  ggplot(aes(x = age_at_consent,
+               y = value)) +
+  geom_point(alpha=0.6,
+             aes(shape = interventionId)) +
+  geom_smooth(method = 'lm',color = "#bd647d") +
+  ggpubr::stat_cor(size = 2.75) +
+    labs(x = labx,
+         y = laby) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown(),
+    strip.background = element_blank(),
+    legend.position = 'top',
+    strip.text.x = element_text(
+        size = 10, face = "bold"),
+  ) +
+  facet_wrap(~visitId, nrow = 1) +
+  scale_shape_manual(values = c(1, 16),
+                     name = '')
+```
+
+```{r print.immage}
+cairo_pdf(here("out/pdf/4b.pdf"),
+          width = 5.5, height = 3)
+print(immage)
+dev.off()
+```
+
+### c) Changes of ImmuneAge
+
+```{r delta.immage}
+load(here("data/data_baseline_change.Rdata"))
+
+df <- longFormat(data[,,30], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+  as.data.frame() |> 
+  dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) |> 
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", "medium", "high"))) |> 
+  dplyr::filter(!is.na(value))
+
+ylab <- '<b>∆ ImmuneAge</b>'
+
+immage_change <- paired_longitudinal_compliance(df,
+                               variable = 'ImmAge_gen',
+                               p = 'p.signif',
+                               ylab = ylab,
+                               nn = 4) 
+```
+
+```{r print.delta.immage}
+cairo_pdf(here("out/pdf/4c.pdf"),
+          width = 4, height = 2.5)
+print(immage_change)
+dev.off()
+```
+
+### d) Comparison I versus K
+
+```{r immage.i.k}
+immage_comp <- comparison_plots(df, variable = 'ImmAge_gen',
+                                ylab = ylab)
+```
+
+```{r print.immage.i.k}
+cairo_pdf(here("out/pdf/4d.pdf"),
+          width = 3.5, height = 2.5)
+print(immage_comp)
+dev.off()
+```
+
+
+### e) Metabolites overview
+
+```{r, metab.overview}
+tmp <- rbind(cbind(ref_saliva, sample = 'saliva'),
+             cbind(ref_urine, sample = 'urine'))
+
+classes <- unique(tmp$Super.class)
+cols_classes <- colorRampPalette(cols[c(1, 2, 3, 5, 4, 6, 7, 8)])(length(classes))
+
+m <- tmp |> group_by(sample, Super.class) |> 
+  summarise(n = n()) |> 
+  mutate(freq = n / sum(n)) |> 
+  ggplot(aes(x = "",
+             y = freq,
+             fill = Super.class)) +
+  geom_bar(stat="identity", width=1, colour = 'white') +
+  theme_minimal()  +
+  theme(panel.background = element_blank(),
+        panel.grid = element_blank(),
+        axis.ticks.y = element_line(linewidth = 0.5),
+        legend.text = element_text(size = 8),
+        legend.key.size = unit(5, "mm")) +
+  labs(x = '', y = 'Proportion of total metabolites') +
+  facet_wrap(~sample) +
+  scale_fill_manual(values = cols_classes,
+                    name = '')
+
+colsMetab <- cols_classes
+names(colsMetab) <- names(table(tmp$Super.class))
+```
+
+```{r print.metab.overview}
+cairo_pdf(here("out/pdf/4e.pdf"),
+          width = 4, height = 3.25)
+print(m)
+dev.off()
+```
+
+### f) Saliva heatmap (t tests)
+
+```{r saliva.heatmap}
+labels <- ref_saliva |> 
+  dplyr::rename(x = Input.name,
+                label = Standardized.name,
+                assay2 = Super.class) |> 
+  dplyr::select(x, label, assay2) |> 
+  dplyr::mutate(assay = 'Saliva nuclear magnetic resonance: normalized',
+                x = ifelse(grepl("^[[:digit:]]", x), paste0("X", x), x),
+                x = ifelse(x == "Acetate.", "Acetate.mM.", x),
+                x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
+
+load(here("out/wilcoxon-tests.Rdata"))
+time <- wilcoxon_tests$overall |> 
+  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
+  dplyr::filter(grepl("Saliva", assay) & grepl("normalized", assay))
+
+int <- wilcoxon_tests$`I versus K`|> 
+  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
+  dplyr::filter(grepl("Saliva", assay) & grepl("normalized", assay))
+
+saliva_heatmap <- plot_heatmap_Metab(time, int, relabel = labels, 
+                   cluster = 'default',
+                   change_baseline = T,
+                   padj = F)
+```
+
+```{r print.saliva.heatmap}
+cairo_pdf(here("out/pdf/4f.pdf"),
+          width = 5.75, height = 4.15)
+print(saliva_heatmap)
+dev.off()
+```
+
+### g) Urine heatmap (t tests)
+
+```{r urine.heatmap}
+labels <- ref_urine |> 
+  dplyr::rename(x = Input.name,
+                label = Standardized.name,
+                assay2 = Super.class) |> 
+  dplyr::select(x, label, assay2) |> 
+  dplyr::mutate(assay = 'Urine nuclear magnetic resonance: normalized',
+                x = ifelse(grepl("^[[:digit:]]", x), paste0("X", x), x),
+                x = ifelse(x == "Acetate.", "Acetate.mM.", x),
+                x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
+
+time <- t_test$overall |> 
+  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
+  dplyr::filter(grepl("Urine", assay) & grepl("normalized", assay))
+
+int <- t_test$`I versus K` |> 
+  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
+  dplyr::filter(grepl("Urine", assay) & grepl("normalized", assay))
+
+urine_heatmap <- plot_heatmap_Metab(time, int, relabel = labels, 
+                   cluster = 'default',
+                   change_baseline = F)
+```
+
+```{r print.urine.heatmap}
+cairo_pdf(here("out/pdf/4g.pdf"),
+          width = 6, height = 2.5)
+print(urine_heatmap)
+dev.off()
+```
+
+
+## Extended Data Figure 6
+
+### a) immune data PCA: scree diagram
+
+First, we can look at the overall variance of immune samples and compose a biplot. We initially get the relevant data + features, pivot them wide and perform a PCA.
+
+```{r run.imm.pca.scree}
+experiment <- c("Flow cytometry: white blood cell staining", "Flow cytometry: T cell staining")
+features <- c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")
+load(here("data/data_raw.Rdata"))
+
+relabel <- populations |> 
+  dplyr::rename(x = name,
+                label = pop_name)
+
+pc <- pca(data, experiment, features, relabel = relabel, complete = T,ncontrib = 6)
+```
+
+```{r print.scree}
+cairo_pdf(here("out/pdf/e6a.pdf"),
+          width = 1.5, height = 2.5)
+print(pc$scree)
+dev.off()
+```
+
+### b) PCA biplot (PCs 1/2)
+
+```{r print.pca.biplot, eval = F}
+cairo_pdf(here("out/pdf/e6b.pdf"),
+          width = 3, height = 2.75)
+print(pc$biplot)
+dev.off()
+```
+
+### c) immune PCA Heatmap
+
+```{r, print.imm.pca.heatmap}
+cairo_pdf(here("out/pdf/e6c.pdf"),
+          width = 4, height = 2.5)
+pc$heatmap
+dev.off()
+```
+
+### d) Immune populations: WB Cell staining - tree + heatmap
+
+First we generate the tree:
+
+```{r imm.pop.tree}
+load("src/populations_names_annotated.Rdata")
+
+# exclude some 'duplicate' populations from WB staining
+exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd8_t_cells_freq_of_parent")
+
+populations_wb <- populations |>
+  dplyr::filter(staining == 'wb staining') |> 
+  dplyr::filter(main_analysis == 'yes') |> 
+  dplyr::filter(!name %in% exclude) |> 
+  dplyr::mutate(pop = gsub("fixable viability dye-", "", `fixable viability dye and antibodies α-`),
+                pop = gsub("b/e1+", "be1", pop),
+                pop = gsub("[-]C", "-/C", pop),
+                pop = gsub("[+]C", "+/C", pop),
+                pathString = paste0("cells/", pop, "/", `second name`),
+                
+                # Monocytes:
+                pathString = gsub("cells/CD16", "cells/Monocytes/CD16", pathString),
+                
+                # reg NK cells
+                pathString = gsub("CD3[-]/CD56[+]/CD16[-]", "CD3-/CD56+/regulatory_NK_cells", pathString),
+                
+                # cyt NK cells
+                pathString = gsub("CD3[-]/CD56[+]/CD16[+]", "CD3-/CD56+/cytotoxic_NK_cells", pathString),
+                
+                # defective NK cells
+                pathString = gsub("CD3[-]/CD56[-]/CD16[+]", "CD3-/CD56+/defective_NK_cells", pathString),
+                # non-NK
+                pathString = gsub("CD3[-]/CD56[-]/CD16[-]", "CD3-/CD56-/non_NK_cells", pathString),
+                
+                # non T
+                pathString = gsub("cells/CD3[-]", "cells/non_T_cells", pathString),
+                
+                
+                # NK
+                pathString = gsub("cells/non_T_cells/CD56[+]/", "cells/non_T_cells/NK_cells/", pathString),
+                
+                
+                # non-NK
+                pathString = gsub("cells/non_T_cells/CD56[-]/non_NK_cells", "cells/non_T_cells/non_NK_cells", pathString),
+                
+                # cytotoxic T cells
+                pathString = gsub("cells/CD3[+]/CD8[+]", "cells/CD3+/cytotoxic_T_cells", pathString),
+                
+                # T helper cells
+                pathString = gsub("cells/CD3[+]/CD4[+]", "cells/CD3+/T helper cells", pathString),
+                
+                # NK T cells
+                pathString = gsub("cells/CD3[+]/CD56[+]", "cells/CD3+/NK_T_cells", pathString),
+                
+                # T cells
+                pathString = gsub("cells/CD3[+]", "cells/T_cells", pathString),
+                
+                # memory B cells
+                pathString = gsub("cells/CD19[+]/CD27[+]", "cells/CD19+/memory_B_cells", pathString),
+                
+                # naive B cells
+                pathString = gsub("cells/CD19[+]/CD27[-]", "cells/CD19+/naïve_B_cells", pathString),
+                
+                # B cells
+                pathString = gsub("cells/CD19[+]", "cells/B_cells", pathString),
+                
+                
+                label = name,
+                name2 = name) |>
+  dplyr::mutate(pathString = gsub("CD16[+/-]", "CD16+|-", pathString),
+                pathString = gsub("_", " ", pathString),
+                pathString = gsub("non T cells/NK cells", "NK cells", pathString),
+                pathString = gsub("Monocytes/CD16[+][|][-]", "Monocytes", pathString)) |> 
+  dplyr::rename(pop_name = `second name`) |> 
+  dplyr::mutate(pathString = gsub("^cells/", "White blood cells/", pathString),
+                pathString = ifelse(pop_name == 'Monocytes', 'White blood cells/Monocytes/Monocytes', pathString))
+
+pop_wb <- populations_wb |> 
+  data.tree::as.Node() |> 
+  tidytree::as.phylo()
+
+pop_wb$tip.label <- gsub("_", " ", pop_wb$tip.label)
+pop_wb$node.label <- gsub("_", " ", pop_wb$node.label)
+
+x <- as_tibble(pop_wb)
+df <- as_tibble(pop_wb) |> 
+  dplyr::mutate(group = case_when(node == 26 | (parent >= 26 & parent <= 29) ~ "B cells",
+                                  node == 30 | (parent >= 30 & parent <= 39)~ "NK cells",
+                                  node == 40 | (parent %in% c(40, 41, 42)) ~ "Monocytes",
+                                  (node == 43) | (parent >= 43) ~ "T cells")) |> 
+  dplyr::mutate(group = factor(group, levels = c("Monocytes", "B cells", "T cells", "NK cells")))
+
+tree <- as.treedata(df)
+
+layout = 'roundrect'
+tree_wb <- ggtree(tree, aes(colour = group), layout = layout,hang = T) +
+  geom_tiplab(geom = 'text', size = 3,
+              hjust = 1,offset = 40) +
+  geom_nodelab(geom = 'label', size = 2.7, fontface = 'bold') +
+  scale_colour_manual(values = cols[c(2,1,5,4,6)]) +
+  theme(legend.position = 'none') +
+  coord_cartesian(clip = 'off')
+
+order <- tree_wb$data |> 
+  dplyr::filter(isTip == T) |> 
+  dplyr::arrange(desc(y))
+
+
+```
+
+```{r print.imm.pop.tree}
+cairo_pdf(here("out/pdf/e6d1.pdf"),
+          width = 5.35, height = 4.5)
+print(tree_wb)
+dev.off()
+```
+
+Now we can generate the heatmap, in order of the tree:
+
+```{r imm.pop.heatmap}
+wb_labs_in_order <- populations_wb[match(order$label, populations_wb$pop_name),] |> 
+  dplyr::mutate(x = name,
+                label = pop_name,
+                assay2 = 'Immune') |> 
+  dplyr::select(x, label, assay2)
+
+time <- out_lmm$`Minimal model`
+comp <- out_lmm$`Basic model with BMI`
+int <- out_lmm$`Intervention (higher compliance)`
+
+# filter LMEs
+wb_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
+                    lmm_data_compliance = comp,
+                    lmm_data_int = int,
+                    relabel = wb_labs_in_order,
+                    filter_relabel = T,
+                    relabel_assay = F,
+                    age_cor = T,
+                    colour_assays = NULL,
+                    cluster = F)
+```
+
+```{r print.imm.pop.heatmap}
+cairo_pdf(here("out/pdf/e6d2.pdf"),
+          width = 5.2, height = 4.5)
+print(wb_heat)
+dev.off()
+```
+
+
+### e) T Cell staining
+
+```{r t.pop.tree}
+load("src/populations_names_annotated.Rdata")
+
+# exclude some 'duplicate' populations from WB staining
+exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
+             "cells_single_cells_live_t_cells_cd8_t_cells_freq_of_parent")
+
+populations_t <- populations |>
+  dplyr::mutate(`second name` = gsub("[(]|[)]", "", `second name`)) |> 
+  dplyr::filter(staining == 't cell staining') |> 
+  dplyr::filter(main_analysis == 'yes') |> 
+  dplyr::filter(!name %in% exclude) |> 
+  dplyr::mutate(pop = gsub("fixable viability dye-", "", `fixable viability dye and antibodies α-`),
+                pop = gsub("b/e1+", "be1", pop),
+                pop = gsub("[-]C", "-/C", pop),
+                pop = gsub("[+]C", "+/C", pop),
+                pop = gsub("[+]HL", "+/HL", pop),
+                pop = gsub("[+]PD", "+/PD", pop),
+                pop = gsub("[+]KL", "+/KL", pop),
+                pop = gsub("[-]KL", "-/KL", pop),
+                pathString = paste0("cells/", pop, "/", `second name`),
+                
+                # reg NK cells
+                pathString = gsub("CD3[-]/CD56[+]/CD16[-]", "CD3-/CD56+/regulatory_NK_cells", pathString),
+                
+                # cyt NK cells
+                pathString = gsub("CD3[-]/CD56[+]/CD16[+]", "CD3-/CD56+/cytotoxic_NK_cells", pathString),
+                
+                # defective NK cells
+                pathString = gsub("CD3[-]/CD56[-]/CD16[+]", "CD3-/CD56+/defective_NK_cells", pathString),
+                # non-NK
+                pathString = gsub("CD3[-]/CD56[-]/CD16[-]", "CD3-/CD56-/non_NK_cells", pathString),
+                
+                # non T
+                pathString = gsub("cells/CD3[-]", "cells/non_T_cells", pathString),
+                
+                
+                # NK
+                pathString = gsub("cells/non_T_cells/CD56[+]/", "cells/non_T_cells/NK_cells/", pathString),
+                
+                
+                # non-NK
+                pathString = gsub("cells/non_T_cells/CD56[-]/non_NK_cells", "cells/non_T_cells/non_NK_cells", pathString),
+                
+                # cytotoxic T cells
+                pathString = gsub("cells/CD3[+]/CD8[+]", "cells/CD3+/cytotoxic_T_cells", pathString),
+                
+                # T helper cells
+                pathString = gsub("cells/CD3[+]/CD4[+]", "cells/CD3+/T helper cells", pathString),
+                
+                # NK T cells
+                pathString = gsub("cells/CD3[+]/CD56[+]", "cells/CD3+/NK_T_cells", pathString),
+                
+                # T cells
+                pathString = gsub("cells/CD3[+]", "cells/T_cells", pathString),
+                
+                # memory B cells
+                pathString = gsub("cells/CD19[+]/CD27[+]", "cells/CD19+/memory_B_cells", pathString),
+                
+                # naive B cells
+                pathString = gsub("cells/CD19[+]/CD27[-]", "cells/CD19+/naïve_B_cells", pathString),
+                
+                # B cells
+                pathString = gsub("cells/CD19[+]", "cells/B_cells", pathString),
+                
+                
+                label = name,
+                name2 = name) |>
+  dplyr::mutate(pathString = gsub("cells/T_cells", "T_cells", pathString)) |> 
+  dplyr::rename(pop_name = `second name`)
+
+pop_t <- populations_t |> 
+  data.tree::as.Node() |> 
+  tidytree::as.phylo()
+
+pop_t$tip.label <- gsub("_", " ", pop_t$tip.label)
+pop_t$node.label <- gsub("_", " ", pop_t$node.label)
+
+# ggtree(pop_t,layout = layout,hang = T) +
+#   geom_tiplab(geom = 'text', size = 2) +
+#   geom_nodelab(geom = 'label', size = 2.4, fontface = 'bold')
+
+x <- as_tibble(pop_t)
+
+df <- as_tibble(pop_t) |> 
+  dplyr::mutate(group = case_when(label == "T cells" | is.na(branch.length) ~ "T cells",
+                                  label == 'T helper cells' | (parent >= 28 & parent <=38) ~ "T helper",
+                                  label == 'cytotoxic T cells' | (parent >= 38) ~ "cytotoxic"))
+
+tree <- as.treedata(df)
+layout = 'roundrect'
+
+tree_t <- ggtree(tree, aes(colour = group), layout = layout,hang = T) +
+  geom_tiplab(geom = 'text', size = 3,
+              hjust = 1,offset = 40) +
+  geom_nodelab(geom = 'label', size = 2.7, fontface = 'bold') +
+  scale_colour_manual(values = cols[c(7, 4, 8)]) +
+  theme(legend.position = 'none') +
+  coord_cartesian(clip = 'off')
+
+order <- tree_t$data |> 
+  dplyr::filter(isTip == T) |> 
+  dplyr::arrange(desc(y))
+```
+
+```{r print.t.pop.tree}
+cairo_pdf(here("out/pdf/e6e1.pdf"),
+          width = 5.35, height = 5)
+print(tree_t)
+dev.off()
+```
+
+Now we can generate the heatmap, in order of the tree:
+
+```{r t.pop.heatmap}
+t_labs_in_order <- populations_t[match(order$label, populations_t$pop_name),] |> 
+  dplyr::mutate(x = name,
+                label = pop_name,
+                assay2 = 'Immune') |> 
+  dplyr::select(x, label, assay2)
+
+time <- out_lmm$`Minimal model`
+comp <- out_lmm$`Basic model with BMI`
+int <- out_lmm$`Intervention (higher compliance)`
+
+# filter LMEs
+t_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
+                    lmm_data_compliance = comp,
+                    lmm_data_int = int,
+                    relabel = t_labs_in_order,
+                    filter_relabel = T,
+                    relabel_assay = F,
+                    age_cor = T,
+                    colour_assays = NULL,
+                    cluster = F)
+```
+
+```{r print.t.pop.heatmap}
+cairo_pdf(here("out/pdf/e6e2.pdf"),
+          width = 5.25, height = 4.75)
+print(t_heat)
+dev.off()
+```
+
+
+### 7a) Saliva: PCA - Scree
+
+```{r saliva.scree}
+experiment <- c("Saliva nuclear magnetic resonance: normalized")
+features <- c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")
+load(here("data/data_raw.Rdata"))
+
+# Renaming
+ref_saliva <-  readRDS("out/RefMet_mapped_saliva.Rds")
+
+relabel <- ref_saliva |> 
+  dplyr::mutate(x = case_when(Input.name == 'Acetate.' ~ 'Acetate.mM.',
+                                       Input.name == '3.Methyl.2.oxovalerate' ~ 'X3.Methyl.2.oxovalerate',
+                                       Input.name == '5.Aminopentanoate' ~ 'X5.Aminopentanoate',
+                                       Input.name == 'Trimethylamine N-oxide' ~ 'TMA..N.oxide',
+                                       TRUE ~ Input.name)) |> 
+  dplyr::rename(label = Standardized.name)
+
+pc <- pca(data, experiment, features, complete = T, relabel = relabel)
+```
+
+```{r print.saliva.scree}
+cairo_pdf(here("out/pdf/e7a.pdf"),
+          width = 1.5, height = 3)
+pc$scree
+dev.off()
+```
+
+### 6b) Saliva: PCA - Heatmap
+
+```{r print.saliva.pca.heatmap}
+cairo_pdf(here("out/pdf/e7b.pdf"),
+          width = 4, height = 3)
+pc$heatmap
+dev.off()
+```
+
+### 6c) Urine: PCA - Scree
+
+```{r urine.scree}
+experiment <- c("Urine nuclear magnetic resonance: normalized")
+features <- c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")
+load(here("data/data_raw.Rdata"))
+
+# Renaming
+ref_urine <-  readRDS("out/RefMet_mapped_urine.Rds")
+
+relabel <- ref_urine |> 
+  dplyr::mutate(x = case_when(grepl("^1|^2|^3|^4|^5", Input.name) ~ paste0("X", Input.name),
+                                       TRUE ~ Input.name)) |> 
+  dplyr::rename(label = Standardized.name)
+
+pc <- pca(data, experiment, features, complete = T, relabel = relabel)
+```
+
+```{r print.urine.scree}
+cairo_pdf(here("out/pdf/e7c.pdf"),
+          width = 1.5, height = 3)
+pc$scree
+dev.off()
+```
+
+### 6d) Urine: PCA - Heatmap
+
+
+```{r print.urine.pca.heatmap}
+cairo_pdf(here("out/pdf/e7d.pdf"),
+          width = 4, height = 3)
+pc$heatmap
+dev.off()
+```

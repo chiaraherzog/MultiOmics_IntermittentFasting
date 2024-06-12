@@ -1,0 +1,359 @@
+---
+title: "Repeated measures correlation for multi-omic integration"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs}
+library(dplyr)
+library(here)
+library(rmcorr)
+library(ggplot2)
+library(MultiAssayExperiment)
+here::i_am("helper-rmcorr.qmd")
+```
+
+This script is used to generate repeated measures correlation (rmcorr) on features, using both normalized absolute data and normalized change data. The outputs are saved under `out/rmcorr.Rdata` and `out/rmcorr_change.Rdata`.
+
+# 1. Absolute normalized data
+
+## Load data
+
+Normalized data are loaded. We are focusing on a few informative and relevant features (e.g., families rather than ASVs).
+
+```{r loaddata.all, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+# Selected omes
+exp <- list('Blood haemogram',
+            'Body composition',
+            'Skin histology and transepidermal water loss assay',
+            'Functional sports exam',
+            'Vascular and body sonography',
+            'Flow cytometry: T cell staining',
+            'Flow cytometry: white blood cell staining',
+            'Urine nuclear magnetic resonance: normalized',
+            'Saliva nuclear magnetic resonance: normalized',
+            'Composite methylation scores: blood',
+            'Composite methylation scores: buccal',
+            'Composite methylation scores: cervical',
+            'Stool microbiome: families',
+            'Saliva microbiome: families',
+            'Immune age: general',
+            'Vascular and body sonography',
+            'Saliva microbiome: ASVs',
+            'Stool microbiome: ASVs')
+
+# Get data in long format
+df <- as.data.frame(longFormat(data[,,as.character(exp)],
+                               colData = c('subjectId', 'interventionId', 'visitId'))) 
+
+
+# Filtering:
+
+## a) Filter I/K intervention and M0-M6 only
+df <- df |> 
+  dplyr::filter(interventionId != 'S' & !visitId %in% c('M12', 'M18')) |> 
+  dplyr::mutate(visitId = as.numeric(gsub("M", "", visitId))) |> 
+  dplyr::select(primary, rowname, visitId, assay, value, subjectId) 
+
+## b) For methylation, keep only those that are relevant indices
+indices_cerv <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 1)
+indices_buccal <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 2)
+indices_bl <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 3)
+
+df <- df |> 
+  dplyr::filter(!grepl("Composite", assay) | (grepl("Composite", assay) & grepl('cervical', assay) & rowname %in% indices_cerv$x) |
+                  (grepl("Composite", assay) & grepl('buccal', assay) & rowname %in% indices_buccal$x) |
+                  (grepl("Composite", assay) & grepl('blood', assay) & rowname %in% indices_bl$x))
+
+
+## c) For immune cells, keep only 'main' populations
+load(here("src/populations_names_annotated.Rdata"))
+populations <- populations |> 
+  dplyr::filter(staining != 't cell stimulation' & main_analysis == 'yes')
+
+df <- df |> 
+  dplyr::filter(!grepl("Flow cytometry", assay) | (grepl("Flow cytometry", assay) & rowname %in% populations$name))
+
+## d) some additional variable cleaning - remove superfluous variables
+df <- df |> 
+  dplyr::filter(!grepl("Immune age", assay) | (grepl("Immune age", assay) & !grepl("primary|ImmAge_gen_adj", rowname))) |> 
+  dplyr::filter(!grepl("height", rowname))
+
+
+## e) log transform metabolome data (see whether this might work better)
+log_df <- df |>
+  dplyr::filter(grepl('magnetic',assay)) |> 
+  dplyr::mutate(value = log(value+0.01),
+                assay = paste0(assay, "-log"))
+
+df <- rbind(df, log_df)
+
+# f) For microbiome, keep only those that are non-0/non-NA in more than 50% of individuals/timepoints
+fam_count <- df |> 
+  dplyr::filter(grepl("families", assay)) |> 
+  dplyr::group_by(assay, rowname) |> 
+  dplyr::reframe(zeros = (sum(value == 0, na.rm = T)+sum(is.na(value)))/n()) |> 
+  dplyr::filter(zeros < 0.5)
+
+df <- df |> dplyr::filter(!grepl("families", assay) | (grepl("families", assay) & rowname %in% fam_count$rowname))
+
+asv_count <- df |> 
+  dplyr::filter(grepl("ASVs", assay)) |> 
+  dplyr::group_by(assay, rowname) |> 
+  dplyr::reframe(zeros = (sum(value == 0, na.rm = T)+sum(is.na(value)))/n()) |> 
+  dplyr::filter(zeros < 0.5)
+
+df <- df |> dplyr::filter(!grepl("ASVs", assay) | (grepl("ASVs", assay) & rowname %in% asv_count$rowname))
+
+
+# g) Clinical variables
+clin <- read.csv(here("src/clinical_variables.csv"))
+df <- df |> 
+  dplyr::filter((grepl("Functional|Vascular|Skin", assay) & rowname %in% clin$x) | !grepl("Functional|Vascular|Skin", assay))
+
+# Formating: Now we can pivot data to wider, concatenating assay and rowname for unique variables
+dat <- df |> 
+  dplyr::mutate(name = paste0(assay, '_', rowname)) |> 
+  dplyr::select(-rowname) |> 
+  tidyr::pivot_wider(names_from = 'name',
+                     values_from = 'value',
+                     id_cols = c('primary', 'subjectId', 'visitId'))
+
+dat <- dat |> 
+  dplyr::select(where(~!all(is.na(.x)))) 
+save(dat, file = here("out/plot_rmcorr_examples.Rdata"))
+rm(list=ls());gc()
+```
+
+## Run rmcorr
+
+Once the data have been prepared, we can now run rmcorr:
+
+* Variables are unique columns to be included
+* the subjectId indicates individuals for repeats
+
+```{r}
+load(here("out/plot_rmcorr_examples.Rdata"))
+variables <- colnames(dat)[!colnames(dat) %in% c('primary', 'subjectId')]
+
+out <- rmcorr::rmcorr_mat(subjectId,
+                          variables,
+                          dat)
+
+rmcorr <- out$summary |> 
+  dplyr::mutate(assay1 = stringr::str_split_i(measure1, "_", 1),
+                assay2 = stringr::str_split_i(measure2, "_", 1),
+                diff_assay = case_when(grepl("cytometry", assay1) & grepl("cytometry", assay2) ~ "no",
+                                       assay1 != assay2 ~ 'yes',
+                                       TRUE ~ 'no'))
+
+save(rmcorr, file = here('out/rmcorr.Rdata'))
+```
+
+## Initial exploration
+
+```{r DT.all, eval = F}
+load(here('out/rmcorr.Rdata'))
+rmcorr |> 
+  dplyr::filter(assay1 != assay2) |> 
+  dplyr::select(-c(assay1, assay2, df)) |> 
+  dplyr::filter(p.vals < 0.05) |> 
+  dplyr::arrange(p.vals) |> 
+  DT::datatable()
+```
+
+* p Value histogram
+
+```{r hist.all, fig.width = 3.5, fig.height = 3.5, eval = F}
+rmcorr |> 
+  ggplot(aes(x = p.vals)) +
+  geom_histogram(bins = 200) +
+  theme_bw()
+```
+
+```{r}
+rm(list=ls());gc()
+```
+
+# 2. Normalized change data
+
+## Load data
+
+Normalized data are loaded. We are focusing on a few informative and relevant features (e.g., families rather than ASVs).
+
+```{r load.data.change}
+# load in data
+load("data/data_baseline_change.Rdata")
+
+# Selected omes
+exp <- list('Blood haemogram',
+            'Body composition',
+            'Skin histology and transepidermal water loss assay',
+            'Functional sports exam',
+            'Vascular and body sonography',
+            'Flow cytometry: T cell staining',
+            'Flow cytometry: white blood cell staining',
+            'Urine nuclear magnetic resonance: normalized',
+            'Saliva nuclear magnetic resonance: normalized',
+            'Composite methylation scores: blood',
+            'Composite methylation scores: buccal',
+            'Composite methylation scores: cervical',
+            'Stool microbiome: families',
+            'Saliva microbiome: families',
+            'Immune age: general',
+            'Vascular and body sonography',
+            'Saliva microbiome: ASVs',
+            'Stool microbiome: ASVs')
+
+# Get data in long format
+df <- as.data.frame(longFormat(data[,,as.character(exp)],
+                               colData = c('subjectId', 'interventionId', 'visitId'))) 
+
+
+# Filtering:
+
+## a) Filter I/K intervention and M0-M6 only
+df <- df |> 
+  dplyr::filter(interventionId != 'S' & !visitId %in% c('M12', 'M18')) |> 
+  dplyr::mutate(visitId = as.numeric(gsub("M", "", visitId))) |> 
+  dplyr::select(primary, rowname, visitId, assay, value, subjectId) 
+
+## b) For methylation, keep only those that are relevant indices
+indices_cerv <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 1)
+indices_buccal <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 2)
+indices_bl <- readxl::read_xlsx(here("src/indices.xlsx"), sheet = 3)
+
+df <- df |> 
+  dplyr::filter(!grepl("Composite", assay) | (grepl("Composite", assay) & grepl('cervical', assay) & rowname %in% indices_cerv$x) |
+                  (grepl("Composite", assay) & grepl('buccal', assay) & rowname %in% indices_buccal$x) |
+                  (grepl("Composite", assay) & grepl('blood', assay) & rowname %in% indices_bl$x))
+
+
+## c) For immune cells, keep only 'main' populations
+load(here("src/populations_names_annotated.Rdata"))
+populations <- populations |> 
+  dplyr::filter(staining != 't cell stimulation' & main_analysis == 'yes')
+
+df <- df |> 
+  dplyr::filter(!grepl("Flow cytometry", assay) | (grepl("Flow cytometry", assay) & rowname %in% populations$name))
+
+## d) some additional variable cleaning - remove superfluous variables
+df <- df |> 
+  dplyr::filter(!grepl("Immune age", assay) | (grepl("Immune age", assay) & !grepl("primary|ImmAge_gen_adj", rowname))) |> 
+  dplyr::filter(!grepl("height", rowname))
+
+# g) Clinical variables
+clin <- read.csv(here("src/clinical_variables.csv"))
+df <- df |> 
+  dplyr::filter((grepl("Functional|Vascular|Skin", assay) & rowname %in% clin$x) | !grepl("Functional|Vascular|Skin", assay))
+
+# Formating: Now we can pivot data to wider, concatenating assay and rowname for unique variables
+dat <- df |> 
+  dplyr::mutate(name = paste0(assay, '_', rowname)) |> 
+  dplyr::select(-rowname) |> 
+  tidyr::pivot_wider(names_from = 'name',
+                     values_from = 'value',
+                     id_cols = c('primary', 'subjectId', 'visitId'))
+
+dat <- dat |> 
+  dplyr::select(where(~!all(is.na(.x)))) 
+save(dat, file = here("out/plot_rmcorr_examples_change.Rdata"))
+rm(list=ls());gc()
+```
+
+
+## Run rmcorr
+
+Once the data have been prepared, we can now run rmcorr:
+
+* Variables are unique columns to be included
+* the subjectId indicates individuals for repeats
+
+```{r}
+# run rmcorr over same variables as the main rmcorr (minus log)
+load(here("out/plot_rmcorr_examples_change.Rdata"))
+dat1 <- dat
+load(here("out/plot_rmcorr_examples.Rdata"))
+dat2 <- dat
+vars <- colnames(dat2)[!colnames(dat2) %in% c('primary', 'subjectId') & !grepl("-log", colnames(dat2))]
+
+out <- rmcorr::rmcorr_mat(participant = 'subjectId',
+                          variables = vars,
+                          dataset = dat1)
+
+rmcorr <- out$summary |> 
+  dplyr::mutate(assay1 = stringr::str_split_i(measure1, "_", 1),
+                assay2 = stringr::str_split_i(measure2, "_", 1),
+                diff_assay = case_when(grepl("cytometry", assay1) & grepl("cytometry", assay2) ~ "no",
+                                       assay1 != assay2 ~ 'yes',
+                                       TRUE ~ 'no'))
+
+save(rmcorr, file = here('out/rmcorr_change.Rdata'))
+
+rmcorr_change_matrix <- out$matrix
+save(rmcorr_change, file = here('out/rmcorr_change.Rdata'))
+rm(list=ls());gc()
+```
+
+## Initial exploration
+
+```{r DT.change, eval = F}
+rmcorr_change |> 
+  dplyr::select(-c(assay1, assay2, df)) |> 
+  dplyr::filter(p.vals < 0.05) |> 
+  dplyr::arrange(p.vals) |> 
+  DT::datatable()
+```
+
+* p Value histogram
+
+```{r hist.change, fig.width = 3.5, fig.height = 3.5, eval = F}
+rmcorr_change |> 
+  ggplot(aes(x = p.vals)) +
+  geom_histogram(bins = 200) +
+  theme_bw()
+```
+
+# Overlaps between change and absolute values
+
+```{r, eval = F}
+load(here('out/rmcorr.Rdata'))
+load(here('out/rmcorr_change.Rdata'))
+
+rm <- rmcorr |> 
+  dplyr::select(measure1, measure2, assay1, assay2, rmcorr.r, p.vals) |> 
+  dplyr::left_join(dplyr::select(rmcorr_change, measure1, measure2, rmcorr.r, p.vals, assay1, assay2),
+                   by = c('measure1', 'measure2', 'assay1', 'assay2'), suffix = c('', '.change'))
+
+
+p <- rm |> 
+  dplyr::filter(if_all(c(p.vals, p.vals.change), ~ . < 0.05)) |> 
+  ggplot(aes(x = rmcorr.r,
+             y = rmcorr.r.change)) +
+  geom_point(alpha = 0.5,
+             aes(colour = assay1,
+             text = paste0(measure1, '\n', measure2)))  +
+  theme(legend.position = 'bottom')
+
+plotly::ggplotly(p)
+```
+
+The correlation is 0.97.
+
+
+```{r extract, eval = F}
+knitr::purl("helper-rmcorr.qmd",
+            output = 'helper-rmcorr.R')
+```

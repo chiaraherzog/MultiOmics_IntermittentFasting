@@ -1,0 +1,22 @@
+---
+title: "Wilcoxon tests (comparing intervention) (ET4)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 4 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) comparing changes in highly compliant individuals allocated to I or K interventions (unpaired).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r}
+library(here)
+load(here("out/wilcoxon-tests.Rdata"))
+source(here("src/renameVarsWilcoxon.R"))
+wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
+DT::datatable(wilcoxon_tests$`I versus K` |> 
+                dplyr::filter(!is.na(p_M6)) |> 
+                dplyr::arrange(p_M6))
+```
