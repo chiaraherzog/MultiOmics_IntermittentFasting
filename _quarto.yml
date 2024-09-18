@@ -18,14 +18,15 @@ website:
           - helper-corr-bmi-at-baseline.qmd
           - helper-wilcoxon-tests.qmd
           - helper-lmm.qmd
+          - helper-permutation.qmd
           - helper-rmcorr.qmd
           - immuneAge_all.qmd
           - metabolome-anno.qmd
           - helper-corr-ic-at-baseline_salivamicrob.qmd
           - major-gut-metabolites.qmd
-          - mefisto.qmd
-          - menopause.qmd
           - helper-bmi.qmd
+          - helper-corr-ic-at-baseline_salivamicrob.qmd
+          - dropout-association.qmd
       - section: "Figures"
         contents:
           - fig1-overview.qmd
@@ -34,6 +35,12 @@ website:
           - fig4-imm-metabolome.qmd
           - fig5-micro.qmd
           - fig6-integration.qmd
+          - mefisto.qmd
+          - mct-effect.qmd
+          - menopause.qmd
+          - deltaBMI.qmd
+          - dropout-association.qmd
+          - timeSensitivity.qmd
       - section: "Tables"
         contents:
           - tab1.qmd

@@ -26,12 +26,12 @@ bubble_summary <- function(lmmdat, t_test, vars){
     dplyr::filter(!grepl("ASVs|metabolome", assay))
   
   dat_m <- t_test |> 
-    tidyr::separate(rowname, into = c("assay", "Feature"), sep = "_", extra = "merge") |> 
+    # tidyr::separate(rowname, into = c("assay", "Feature"), sep = "_", extra = "merge") |> 
     dplyr::inner_join(vars, by = c('assay' = 'assay',
-                                   'Feature' = 'x'))|> 
+                                   'x' = 'x'))|> 
     dplyr::filter(grepl("nuclear", assay)) |> 
     dplyr::mutate(assay = assay2) |> 
-    dplyr::select(assay, Feature, starts_with("p_")) |> 
+    dplyr::select(assay, x, starts_with("p_")) |> 
     dplyr::rename_with(~ gsub("p_", "p.value_visitId", .x), starts_with("p_"))
   
   dat <- dat |> 

@@ -20,7 +20,7 @@ here::i_am('et6.qmd')
 ```{r}
 load(here("out/out_lmm_factor.Rdata"))
 source(here("src/renameVarsLME.R"))
-out_lmm<- renameVarsLME(out_lmm)
+out_lmm <- renameVarsLME(out_lmm)
 ```
 
 ```{r}

@@ -36,11 +36,14 @@ Normalized data are loaded to run trajectories. To avoid any duplicates for vari
 load("data/data_normalized.Rdata")
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
-                                                 'bmi_at_consent'))) |> 
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs'))) |> 
   dplyr::filter(!is.na(value))
 
-# Filter variables: (see t-tests.qmd for how this was generated:)
+# Filter variables: (see wilcoxon-tests.qmd for how this was generated:)
 load(here("src/vars.Rdata"))
 
 
@@ -50,8 +53,14 @@ df <- df |>
                                  'assay' = 'assay')) |> 
   dplyr::select(-c(label, assay2)) |> 
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
-  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) |> 
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                visitId = factor(visitId, levels = c("M0", "M2", "M4", "M6")),
+                visitIdOrdered = ordered(visitId)) |> 
   dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# check class
+class(df$visitId)
+class(df$visitIdOrdered)
 
 # remove full data
 rm(data);gc()
@@ -102,10 +111,12 @@ We predominantly use:
 
 # Write Extended Data Table (Factor)
 
-```{r, eval = T}
-load(here("out/out_lmm_factor.Rdata"))
-source(here('src/renameVarsLME.R'))
-out_lmm <- renameVarsLME(out_lmm)
+```{r, eval = F}
+source(here("src/prepareLME.R"))
+out_lmm <- prepareLME()
+
+nrow(out_lmm[[1]])
+
 ```
 
 # Write supplementary tables
@@ -113,9 +124,7 @@ out_lmm <- renameVarsLME(out_lmm)
 Now we write the lmm to the extended data tables:
 
 ```{r, eval=F}
-for (x in c("Minimal model", "Basic model with BMI", "Intervention (higher compliance)",
-            "Menopause general",
-            "Menopause interaction")){
+for (x in names(out_lmm)){
   file = case_when(x == 'Minimal model' ~ "6",
                    x == 'Basic model with BMI' ~ '7',
                    x == 'Intervention (higher compliance)' ~ '8',

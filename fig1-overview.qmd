@@ -296,9 +296,16 @@ dev.off()
 ### e) ICC
 
 ```{r icc, eval = F}
-load(here("out/variance_partition_df_var.Rdata"))
+load(here("out/variance_partition_df_var_revised.Rdata"))
 
 df.var.1 <- df.var |> 
+  
+  # keep only clr normalized microbiome/metabolome data
+  dplyr::filter(!assay %in% c("Saliva microbiome: ASVs","Saliva microbiome: families.clr",
+                              "Stool microbiome: ASVs", "Stool microbiome: families.clr",
+                              "Saliva nuclear magnetic resonance: clr",
+                              "Urine nuclear magnetic resonance: clr")) |>
+  dplyr::mutate(assay = gsub("\\.clr","",assay)) |>
   
   # Filter superfluous features
   dplyr::filter(!grepl("_plaque_max|imt_max|_hba1c_ifcc|_ft4|_ft3|height", featureid)) |> 
@@ -316,34 +323,38 @@ df.var.1 <- df.var |>
                 # Formatting of text
                 assay = ifelse(grepl("bloods|metabolome|clinical|composition", assay), paste0("<b>", assay, "</b>"),
                                paste0("<b>", gsub("[:]", "</b>:", assay)))) |> 
-  dplyr::mutate(assay = forcats::fct_reorder(assay, icc, .na_rm = T))
+  dplyr::mutate(assay = forcats::fct_reorder(assay, icc, .na_rm = T)) 
 
 iccplot <- df.var.1 |> 
   ggplot(aes(y = assay,
              x = icc)) +
+  geom_jitter(aes(colour = assay),
+                            alpha = 0.5,
+                            size = 1.2,
+                            position = position_jitter(width = 0.2)) +
   geom_boxplot(outlier.shape = NA,
                aes(fill = assay),
                alpha = 0.4) +
-  ggbeeswarm::geom_beeswarm(aes(colour = assay),
-                            alpha = 0.5,
-                            size = 1.2) +
   labs(x = 'ICC',
        y = '') +
   theme_bw() +
   theme(legend.position = 'none',
         axis.text.y = element_markdown()) +
   scale_x_continuous(position = 'top')  +
-  scale_colour_manual(values = grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(11),
-                      aesthetics = c('colour', 'fill'))
+  scale_colour_manual(values = grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(13),
+                      aesthetics = c('colour', 'fill')) +
+  coord_cartesian(xlim = c(0, 1))
 
 # # save colours for re-use elsewhere
 levels <- levels(df.var.1$assay)
-cols2 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(11)
+cols2 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(13)
 names(cols2) = gsub("<b>|</b>", "", levels)
 cols_for_assays <- cols2
-names(cols_for_assays) <- c("Saliva metabolome", "Urine metabolome", "Stool microbiome", "Blood methylation",
-                            "Saliva microbiome",
-                            "Cervical methylation", "Body composition", "Functional clinical features",
+names(cols_for_assays) <- c("Saliva metabolome", "Urine metabolome",
+                            "Stool microbiome", "Blood methylation",
+                            "Stool microbiome (ASVs)", "Saliva microbiome",
+                            "Cervical methylation", "Body composition",
+                            "Functional clinical features", "Saliva microbiome (ASVs)",
                             "Routine bloods", "Buccal methylation",
                             "Flow cytometry: immune cells")
 save(cols_for_assays, file = here("src/cols_for_assays.Rdata"))
@@ -361,8 +372,7 @@ dev.off()
 
 ```{r topvar.bar, eval = F}
 n <- 0.3 # Prop of top cells
-
-load(here("out/variance_partition_df_var.Rdata"))
+load(here("out/variance_partition_df_var.Rdata")) # note: revised and this are identical, except one has ASVs added.
 
 exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
              "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
@@ -370,6 +380,11 @@ exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
 
 # features with max icc
 features <- df.var |>
+  
+  # keep only clr normalized microbiome/metabolome data
+  dplyr::filter(!assay %in% c("Saliva microbiome: ASVs","Saliva microbiome: families.clr",
+                              "Stool microbiome: ASVs", "Stool microbiome: families.clr",
+                              "Saliva nuclear magnetic resonance: clr","Urine nuclear magnetic resonance: clr") & !grepl("ASVs", assay)) |>
   tidyr::separate(featureid, "_", into = c(NA, 'rowname'), remove = F, extra = 'merge') |> 
   dplyr::filter(!grepl("sports|sono", assay) & !rowname %in% exclude & rowname != "height") |> 
   
@@ -394,7 +409,8 @@ barplot <- features |>
   dplyr::reframe(assay = assay,
                  count = n,
                  prop = n/sum(n)*100) |> 
-  dplyr::mutate(assay = factor(gsub("<b>|</b>", "", assay), levels = gsub("<b>|</b>", "", rev(levels)))) |>
+  dplyr::mutate(assay = factor(gsub("<b>|</b>", "", assay),
+                               levels = gsub("<b>|</b>", "", rev(levels)))) |>
   ggplot(aes(x = 1,
              fill = assay,
              y = prop)) +
@@ -419,6 +435,7 @@ barplot <- features |>
   ) +
   coord_cartesian(clip = 'off',
                   xlim = c(0, 5))
+barplot
 ```
 
 ```{r print.bar, eval=F}
@@ -434,13 +451,14 @@ dev.off()
 ```{r pcheatmap, eval = F}
 # Get raw data for these features
 load("data/data_normalized.Rdata")
-omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 28, 29)
+omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 40:41)
 df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
                                         colDataCols=c("interventionId", "subjectId", "visitId", "age_at_consent", "compliance", "mpstatrs", "bmi_at_consent",
                                                       "pattern", "supplement")) |> 
   as.data.frame() |> 
-  dplyr::mutate(featureid = paste0(assay, "_", rowname)) |> 
-  dplyr::filter(featureid %in% features$featureid) |> 
+  dplyr::mutate(featureid = paste0(assay, "_", rowname),
+                featureid = gsub("_clr_", ".clr_", featureid)) |> 
+  dplyr::filter(featureid %in% features$featureid) |>
   tidyr::pivot_wider(id_cols = interventionId:supplement,
                      names_from = featureid,
                      values_from = value)
@@ -965,12 +983,13 @@ dev.off()
 ```{r pc.hull, eval = F}
 # Get raw data for these features
 load("data/data_normalized.Rdata")
-omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 28, 29)
+omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 40:41)
 df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
                                         colDataCols=c("interventionId", "subjectId", "visitId", "age_at_consent", "compliance", "mpstatrs", "bmi_at_consent",
                                                       "pattern", "supplement")) |> 
   as.data.frame() |> 
-  dplyr::mutate(featureid = paste0(assay, "_", rowname)) |> 
+  dplyr::mutate(featureid = paste0(assay, "_", rowname),
+                featureid = gsub("_clr_", ".clr_", featureid)) |> 
   dplyr::filter(featureid %in% features$featureid) |> 
   tidyr::pivot_wider(id_cols = interventionId:supplement,
                      names_from = featureid,
@@ -1175,4 +1194,8 @@ cairo_pdf(here("out/pdf/e2.pdf"),
           height = 11)
 plot(plot)
 dev.off()
+
+# ggsave(plot = plot,
+#        filename = "figures-png/e2.png",
+#        width = 12, height = 11)
 ```

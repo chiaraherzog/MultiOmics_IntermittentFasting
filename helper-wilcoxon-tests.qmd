@@ -23,13 +23,13 @@ here::i_am("helper-wilcoxon-tests.qmd")
 source(here("src/wilcoxon_tests.R"))
 ```
 
-This script is to run t test for intention to treat and per protocol populations.
+This script is to run Wilcoxon tests for modified intention to treat and per protocol populations.
 
 # Prepare variables to be included
 
 First, we prepare a list of variables to be included:
 
-```{r}
+```{r, eval = F}
 load("data/data_raw.Rdata")
 
 # Preparing a list of variables to be included
@@ -38,6 +38,7 @@ vars_clin <- read.table("src/clinical_variables.csv", header = T, sep = ',') |>
                                   grepl("vifat|scfat", x) ~ "Vascular and body sonography",
                                   grepl("Vascular", assay2) ~ "Vascular and body sonography",
                                   grepl("composition", assay2) ~ "Body composition",
+                                  grepl("Skin", assay2) ~ "Skin histology and transepidermal water loss assay",
                                   TRUE ~ assay2))
 
 vars_cerv_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 1) |> 
@@ -97,7 +98,9 @@ load(here("src/vars.Rdata"))
 
 # extract all data in long format plus basic anno
 df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
-                                                 'bmi_at_consent'))) |> 
+                                                 'bmi_at_consent',
+                                                 'pattern',
+                                                 'mpstatrs'))) |> 
   dplyr::filter(!is.na(value)) |> 
   dplyr::inner_join(vars, by = c("rowname" = "x",
                                  "assay" = "assay")) |> 
@@ -108,7 +111,8 @@ df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "intervention
 # remove S and any non M0-M6
 df_raw <- df |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
-  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) 
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                mpstatrs = factor(mpstatrs, levels = c("no", "yes"))) 
 
 # remove full data
 rm(data);gc()
@@ -118,7 +122,7 @@ load("data/data_baseline_change.Rdata")
 
 # extract all data in long format plus basic anno
 df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
-                                                 'bmi_at_consent'))) |> 
+                                                 'bmi_at_consent', 'pattern', 'mpstatrs'))) |> 
   dplyr::filter(!is.na(value)) |> 
   dplyr::inner_join(vars, by = c("rowname" = "x",
                                  "assay" = "assay")) |> 
@@ -128,15 +132,16 @@ df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "intervention
 # remove S and any non M0-M6
 df_change <- df |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
-  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high'))) 
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                mpstatrs = factor(mpstatrs, levels = c("no", "yes")))
 
 # remove full data
 rm(data, df);gc()
 ```
 
-# Run t tests
+# Run Wilcoxon tests
 
-The t tests are run using the `wilcoxon_tests` function.
+The Wilcoxon tests are run using the `wilcoxon_tests` function.
 
 ```{r, eval = F}
 wilcoxon_tests <- wilcoxon_tests(df_change, df_raw)
@@ -162,7 +167,8 @@ for (x in c("overall", "compliance comparison", "I versus K", "high compliance o
                    x == 'I versus K' ~ '4',
                    x == 'high compliance only' ~ '5')
 
-  writexl::write_xlsx(as.data.frame(wilcoxon_tests[[x]]),
+  writexl::write_xlsx(as.data.frame(wilcoxon_tests[[x]] |> 
+                                      dplyr::filter(!grepl("ImmAge_gen_adj", x))),
                       path = paste0("out/Extended-Data-Table-",
                                     file,
                                     ".xlsx")

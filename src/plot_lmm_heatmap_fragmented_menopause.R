@@ -19,7 +19,7 @@ plot_lmm_heatmap_frag <- function(exp,
                                            "#48a0af",
                                            "#f39668",
                                            "#ec6669"),
-                                  FDR = F){
+                                  FDR = T){
   
   if(!require("gtools")){
     install.packages("gtools")
@@ -29,133 +29,121 @@ plot_lmm_heatmap_frag <- function(exp,
   library(purrr)
   library(openxlsx)
   library(rcartocolor)
+    
+  tmp1 <- lmm_data_overall |> 
+    dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) |> 
+    dplyr::select(x|contains(c("mpstatrsyes"))) |> 
+    dplyr::select(!contains(c("std.")))
+    
+  tmp3 <- lmm_data_int |> 
+    dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) %>%
+    dplyr::select(!contains(c("std.", "age_at_consent", "bmi_at_consent","interventionIdK",
+                              "estimate_mpstatrsyes",
+                              "p.value_mpstatrsyes"))) %>% 
+    dplyr::select(!ends_with(c("visitIdM2", "visitIdM4", "visitIdM6", "visitIdM2_adj",
+                               "visitIdM4_adj", "visitIdM6_adj",
+                               "group")))
+    
+  tmp <- tmp1 |> 
+    dplyr::full_join(tmp3, by = "x") |> 
+    dplyr::filter(!grepl("families_clr|ASVs_ASV|Saliva nuclear", x))
+    
   
-  source("src/FDR_correct.R")
+  p_value_columns <- grep("^p\\.value", names(tmp), value = TRUE)
   
-  ## load output lmm models and correct p-values if requested, keep only significant results ##----
-  
-  if (FDR == F) {
-    
-    tmp1 <- lmm_data_overall %>%
-      dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) %>%
-      dplyr::select(x|contains(c("mpstatrsyes"))) %>%
-      dplyr::select(!contains(c("std.")))
-    
-    tmp3 <- lmm_data_int %>%
-      dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) %>%
-      dplyr::select(!contains(c("std.", "age_at_consent", "bmi_at_consent","interventionIdK",
-                                "estimate_mpstatrsyes",
-                                "p.value_mpstatrsyes"))) %>% 
-      dplyr::select(!ends_with(c("visitIdM2", "visitIdM4", "visitIdM6")))
-    
-    tmp <- tmp1 %>% 
-      dplyr::full_join(tmp3, by = "x")
-    
-    #tmp$x = gsub(paste0(exp,"_"),"",tmp$x)
-    
-    # filter out only significant rows and replace pval with * symbols
-    tmp <- tmp %>%
-      filter(rowSums(across(starts_with("p.value"), ~ . < 0.01), na.rm = TRUE) > 0) %>% 
-      dplyr::mutate(across(contains("p.value"), ~ ifelse(is.na(.), "", gtools::stars.pval(.)))) |> 
-      dplyr::mutate(across(contains("p.value"), ~ gsub("[.]", "", .)))
-    
-  } else if (FDR == T){
-    
-    # overall model FDR correct
-    tmp1 <- lmm_data_overall %>%
-      dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) %>%
-    
-    tmp1_p <- tmp1 %>%
-      dplyr::select(x,contains("p.value")) %>%
-      pivot_longer(cols = contains("p.value"),names_to = "estimate", values_to = "p_value") %>%
-      FDR_correct() %>%
-      pivot_wider(id_cols = x, names_from = estimate, values_from = p_value)
-    
-    tmp1 <- tmp1 %>%
-      select(!contains("p.value")) %>%
-      left_join(tmp1_p, by = "x") %>%
-      dplyr::select(x|contains(c("mpstatrsyes"))) %>% 
-      dplyr::select(!contains(c("std.")))
-    
-    # interaction FDR correct
-    tmp3 <- lmm_data_int %>%
-      dplyr::filter(purrr::map_lgl(x, ~ any(stringr::str_detect(.x, exp)))) %>%
-    
-    tmp3_p <- tmp3 %>%
-      dplyr::select(x,contains("p.value")) %>%
-      pivot_longer(cols = contains("p.value"),names_to = "estimate", values_to = "p_value") %>%
-      FDR_correct() %>%
-      pivot_wider(id_cols = x, names_from = estimate, values_from = p_value)
-    
-    tmp3 <- tmp3 %>%
-      select(!contains("p.value")) %>%
-      left_join(tmp3_p, by = "x") %>%
-      dplyr::select(!contains(c("std.", "age_at_consent", "bmi_at_consent", "interventionIdK",
-                                "estimate_mpstatrsyes",
-                                "p.value_mpstatrsyes"))) %>% 
-      dplyr::select(!ends_with(c("visitIdM2", "visitIdM4", "visitIdM6")))
-    
-    # combine
-    tmp <- tmp1 %>% 
-      dplyr::full_join(tmp3, by = "x")
-    
-    #tmp$x = gsub(paste0(exp,"_"),"",tmp$x)
-    
-    # filter out only significant rows and replace pval with * symbols
-    tmp <- tmp %>%
-      filter(rowSums(across(starts_with("p.value"), ~ . < 0.05)) > 0, na.rm = TRUE) %>% 
-      dplyr::mutate(across(contains("p.value"), ~ ifelse(is.na(.), "", gtools::stars.pval(.)))) |> 
-      dplyr::mutate(across(contains("p.value"), ~ gsub("[.]", "", .)))
+  custom_stars_pval <- function(pvals) {
+    sapply(pvals, function(pval) {
+      if (is.na(pval)) {
+        return("")  # Return an empty string for NA values
+      } else {
+        # Convert p-values to significance stars
+        result <- cut(pval, breaks = c(0, 0.001, 0.01, 0.05, 1), 
+                      labels = c("***", "**", "*", ""), right = FALSE)
+        # Ensure the result is returned as a character
+        return(as.character(result))
+      }
+    })
   }
   
+  if(fdr){
+    tmpfdr <- FDRcorr(tmp, append = F)
+    
+    for (col in p_value_columns) {
+      tmp[[col]] <- ifelse(is.na(tmpfdr[[col]]), "",
+                           ifelse(tmpfdr[[col]] < 0.05,
+                                  paste0("<b>", custom_stars_pval(tmp[[col]]), "</b>"), 
+                                  custom_stars_pval(tmp[[col]])))
+    }
+    
+  } else {
+    
+    for (col in p_value_columns) {
+      tmp[[col]] <- ifelse(is.na(tmp[[col]]), "",
+                           ifelse(tmp[[col]] < 0.05,
+                                  paste0("<b>", custom_stars_pval(tmp[[col]]), "</b>"), 
+                                  custom_stars_pval(tmp[[col]])))
+    }
+    
+  }
+  
+
+  # Filter only those where at least one is significant
+  tmp <- tmp |> 
+    filter_at(vars(starts_with("p.value")), any_vars(grepl("**", ., fixed = TRUE)))
+    
   ## Split feature names into label/ome, fix names, order by ome ##----
-  # split feature names into label/ome
-  tmp$ome <- gsub("_.*", "", tmp$x)
-  tmp$x <- mapply(function(pattern, text) gsub(pattern, "", text), tmp$ome, tmp$x) # remove ome names from x
-  tmp$x <- gsub("^.", "",tmp$x) # remove trailing "_"
+  tmp <- tmp |> 
+    dplyr::mutate(x = gsub("_clr", "", x)) |>
+    tidyr::separate(x, "_", into = c("assay", "x"), extra = 'merge')
   
-  # fix names clinical variables
-  map <- read.csv("src/clinical_variables.csv")%>%
-    dplyr::select(x, label) %>%
-    dplyr::rename(feature_new = label)
-  tmp <- merge(tmp, map, by = "x", all.x = TRUE)
-  tmp$x <- ifelse(!is.na(tmp$feature_new), tmp$feature_new, tmp$x)
-  tmp <- tmp %>% dplyr::select(-feature_new)
+  load("src/vars.Rdata")
   
-  # fix names immune cell populations
-  load("src/populations_names_annotated.Rdata")
-  populations = populations %>%
-    dplyr::select(name, `population name`) %>%
-    dplyr::rename(feature_new = `population name`, x = name)
-  tmp <- merge(tmp, populations, by = "x", all.x = TRUE)
-  tmp$x <- ifelse(!is.na(tmp$feature_new), tmp$feature_new, tmp$x)
-  tmp <- tmp %>% dplyr::select(-feature_new)
+  tmp <- tmp |> dplyr::left_join(dplyr::select(vars, x, label, assay, assay2)) |> 
+    dplyr::mutate(x = label,
+                  
+                  assay2 = case_when(assay2 %in% c('Blood test') | assay == 'Blood haemogram' ~ "Routine bloods",
+                                                   assay2 %in% c("Functional exercise capacity",
+                                                                 "Body weight and composition") | assay %in% c("Body composition", "Functional sports exam") ~ "Functional clinical features",
+                                                   grepl("Flow cytometry", assay) ~ "Immune",
+                                                   grepl("cervical", assay) ~ "Cervical methylation",
+                                                   grepl("buccal", assay) ~ "Buccal methylation",
+                                                   grepl("blood", assay) & grepl("methylation", assay) ~ "Blood methylation",
+                                                   grepl("ASV", assay) & grepl("Saliva", assay) ~ "Saliva microbiome (ASV)",
+                                                   grepl("families", assay) & grepl("Saliva", assay) ~ "Saliva microbiome (family)",
+                                                   grepl("ASV", assay) & grepl("Stool", assay) ~ "Stool microbiome (ASV)",
+                                                   grepl("families", assay) & grepl("Stool", assay) ~ "Stool microbiome (family)",
+                                                   grepl("magnetic", assay) & grepl("Urine", assay) ~ "Urine metabolome",
+                                     grepl("magnetic", assay) & grepl("Saliva", assay) ~ "Saliva metabolome",
+                                                   TRUE ~ NA),
   
-  # fix names methylation scores
-  indices_cerv <- readxl::read_xlsx("src/indices.xlsx", sheet = 1)
-  indices_buccal <- readxl::read_xlsx("src/indices.xlsx", sheet = 2)
-  indices_bl <- readxl::read_xlsx("src/indices.xlsx", sheet = 3)
-  map <- rbind(indices_cerv,indices_buccal,indices_bl) %>%
-    dplyr::distinct() %>%
-    dplyr::rename(feature_new = label)
-  tmp <- merge(tmp, map, by = "x", all.x = TRUE)
-  tmp$x <- ifelse(!is.na(tmp$feature_new), tmp$feature_new, tmp$x)
-  tmp <- tmp %>% dplyr::select(-feature_new)
+                  assay = assay2) |> 
+    dplyr::select(-c(assay2, label)) |> 
+    dplyr::relocate(assay, x)
   
   # order by ome
-  tmp$ome <- gsub(": normalized", "", tmp$ome)
-  tmp$ome <- factor(tmp$ome, levels = c("Blood haemogram","Body composition",
-                                        "Flow cytometry: T cell staining","Flow cytometry: white blood cell staining",
-                                        "Composite methylation scores: blood","Composite methylation scores: buccal","Composite methylation scores: cervical","Immune age: general",
-                                        "Saliva nuclear magnetic resonance","Urine nuclear magnetic resonance",
-                                        "Saliva microbiome: families", "Stool microbiome: families"))
-  tmp <- tmp %>% 
-    droplevels() %>%
-    arrange(ome)
+  tmp <- tmp |> dplyr::mutate(assay = factor(assay, levels = c("Functional clinical features",
+                                                               "Blood methylation",
+                                                               "Buccal methylation",
+                                                               "Cervical methylation",
+                                                               "Immune",
+                                                               "Saliva microbiome (family)",
+                                                               "Stool microbiome (family)",
+                                                               "Urine metabolome"))) |> 
+    droplevels() |> 
+    arrange(assay)
+  
+  xcol = list(assay = c("Functional clinical features" = "#1b69a1",
+                        "Blood methylation" = "#48a0af",
+                        "Buccal methylation" = "#71b5a9",
+                        "Cervical methylation" = "#f39668",
+                        "Immune" = "#ec6669",
+                        "Saliva microbiome (family)" = "#bd647d",
+                        "Stool microbiome (family)" = "#832c9b",
+                        "Urine metabolome" =  "#5f70a8"))
   
   ## Column splits and labels ##---- 
-  col_split <- c("mpstatrs", "mpstatrs:time","mpstatrs:time","mpstatrs:time")
-  col_split <- factor(col_split, levels = c("mpstatrs", "mpstatrs:time"))
+  col_split <- c("menopause", "menopause:time","menopause:time","menopause:time")
+  col_split <- factor(col_split, levels = c("menopause", "menopause:time"))
   col_labs <- c("","M2", "M4", "M6")
   
   row_labs <- ifelse(tmp$`p.value_visitIdM6:mpstatrsyes` == "*" |
@@ -165,17 +153,34 @@ plot_lmm_heatmap_frag <- function(exp,
                      paste0("**", tmp$x, "**"),
                      tmp$x)
   
-  # ome annotation
-  color_palette <- carto_pal(length(levels(tmp$ome)), "Earth")
-  color_omes <- setNames(color_palette, levels(tmp$ome))
-  ha <- rowAnnotation(ome = tmp$ome,
-                      col = list(ome = color_omes))
+  row_labs <- ifelse(grepl("<b>", tmp$`p.value_visitIdM6:mpstatrsyes`, fixed = TRUE) | 
+                       grepl("<b>", tmp$`p.value_visitIdM4:mpstatrsyes`, fixed = TRUE) |
+                       grepl("<b>", tmp$`p.value_visitIdM2:mpstatrsyes`, fixed = TRUE) |
+                       grepl("<b>", tmp$p.value_mpstatrsyes, fixed = TRUE),
+                     paste0("**", tmp$x, "**"),  # FDR significant (bold)
+                            tmp$x)
   
+  # ome annotation
+  ha <- rowAnnotation(assay = tmp$assay,
+                      col = xcol)
+
   ## Draw heatmap ##---- 
   
   # Indices
   ind_est <- grep("estimate", colnames(tmp))  
   ind_p <- grep("p.value", colnames(tmp))
+  
+  cell_fun <- function(j, i, x, y, width, height, fill) {
+    full_text <- as.matrix(tmp[, ind_p])[i, j]
+    if (grepl("<b>", full_text)) {
+      clean_text <- gsub("<b>|</b>", "", full_text)
+      grid.text(clean_text, x = x, y = y, 
+                gp = gpar(fontsize = 7, fontface = "bold", fontfamily = "Arial Black"), just = "centre")
+    } else {
+      grid.text(full_text, x = x, y = y, 
+                gp = gpar(fontsize = 7, fontface = "plain", col = 'grey20'), just = "centre")
+    }
+  }
 
   p <- Heatmap(as.matrix(tmp[,ind_est]),
                name = 'estimate\n(scaled)',
@@ -199,9 +204,7 @@ plot_lmm_heatmap_frag <- function(exp,
                 show_column_dend = F,
                 
                 # Annotation
-                cell_fun = function(j, i, x, y, width, height, fill) {
-                  grid.text(as.matrix(tmp[,ind_p])[i, j], x, y, gp = gpar(fontsize = 7), just = "centre")
-                },
+                cell_fun = cell_fun,
                 
                 # Colours
                na_col = 'white',

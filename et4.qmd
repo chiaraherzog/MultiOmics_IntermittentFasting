@@ -13,6 +13,10 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 
 ```{r}
 library(here)
+library(dplyr)
+
+here::i_am('et4.qmd')
+
 load(here("out/wilcoxon-tests.Rdata"))
 source(here("src/renameVarsWilcoxon.R"))
 wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)

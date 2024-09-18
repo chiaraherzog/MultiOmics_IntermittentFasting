@@ -28,7 +28,7 @@ plot_lmm_heatmap_v3 <- function(lmm_data_time,
                                                                "Spirometry" = "#bd647d",
                                                                "Functional exercise capacity" = "#f39668",
                                                                "Blood test" = '#71b5a9',
-                                                               "Skin histology and TEWL" = "#5f70a8",
+                                                               "Skin histology and transepidermal water loss assay" = "#5f70a8",
                                                                "Vascular features" = '#0d49a1')),
                                 relabel_assay = F,
                                 methyl_sub = NULL,
@@ -36,7 +36,8 @@ plot_lmm_heatmap_v3 <- function(lmm_data_time,
                                 age_cor = F,
                                 mark_age_cor = F,
                                 cluster = 'default',
-                                padj = F){
+                                padj = F
+                                ){
   
   if(!require("gtools")){
     install.packages("gtools")
@@ -104,7 +105,8 @@ plot_lmm_heatmap_v3 <- function(lmm_data_time,
   }
   
   if(padj == T){
-    tmp <- tmp |> dplyr::mutate(across(contains("p.value"), ~ p.adjust(., method = 'fdr')))
+    tmp <- tmp |>
+      dplyr::mutate(across(contains("p.value"), ~ p.adjust(., method = 'fdr'))) 
   }
   
   tmp <- tmp |> 

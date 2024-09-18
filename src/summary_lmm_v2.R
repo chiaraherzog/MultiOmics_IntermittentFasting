@@ -38,20 +38,33 @@ summary_lmm <- function(dat,
     models <- list("Minimal model" = 'value ~ time + age_at_consent + bmi_at_consent + (1|subjectId)',
                    "Basic model" = 'value ~ time*compliance + age_at_consent + (1 | subjectId)',
                    "Basic model with BMI" = 'value ~ time*compliance + age_at_consent + bmi_at_consent + (1 | subjectId)',
+                   "Basic model with BMI and BMI change" = 'value ~ time*compliance + age_at_consent + dbmi + (1 | subjectId)',
                    "Intervention (higher compliance)" = 'value ~ time*interventionId + age_at_consent + (1 | subjectId)',
                    "Intervention (higher compliance, supplement sensitivity test)" = 'value ~ time*interventionId + age_at_consent + (1 | subjectId)',
                    "Full model" = 'value ~ age_at_consent + bmi_at_consent + time*compliance*interventionId + (1|subjectId)'
     )
   } else if (is.null(models) & timeType == 'factor'){
     models <- list("Minimal model" = 'value ~ visitId + age_at_consent + bmi_at_consent + (1|subjectId)',
+                   "Minimal model (ordered)" = 'value ~ visitIdOrdered + age_at_consent + bmi_at_consent + (1|subjectId)',
+                   
+                   # Basic models
                    "Basic model (no BMI)" = 'value ~ visitId*compliance + age_at_consent + (1 | subjectId)',
                    "Basic model with BMI" = 'value ~ visitId*compliance + age_at_consent + bmi_at_consent + (1 | subjectId)',
+                   "Basic model with BMI and BMI change" = 'value ~ visitId*compliance + age_at_consent + bmi_at_consent + dbmi + (1 | subjectId)',
+                   "Basic model with BMI - ordered" = 'value ~ visitIdOrdered*compliance + age_at_consent + bmi_at_consent + (1 | subjectId)',
+                   "Basic model with BMI and BMI change - ordered" = 'value ~ visitIdOrdered*compliance + age_at_consent + bmi_at_consent + dbmi + (1 | subjectId)',
+                   
+                   # Intervention
                    "Intervention (higher compliance)" = 'value ~ visitId*interventionId + age_at_consent + bmi_at_consent + (1 | subjectId)',
-                   "Intervention (higher compliance, supplement sensitivity test)" = 'value ~ visitId*interventionId + age_at_consent + bmi_at_consent + (1 | subjectId)',
+                   "Intervention (higher compliance supplement sensitivity test)" = 'value ~ visitId*interventionId + age_at_consent + bmi_at_consent + (1 | subjectId)',
                    "Intervention (all)" = 'value ~ visitId*interventionId + age_at_consent + bmi_at_consent + (1|subjectId)',
+                   "Intervention (higher compliance) - ordered" = 'value ~ visitIdOrdered*interventionId + age_at_consent + bmi_at_consent + (1 | subjectId)',
+                   
                    "Full model" = 'value ~ age_at_consent + bmi_at_consent + visitId*compliance*interventionId + (1|subjectId)',
+                   
                    "Menopause interaction" = 'value ~ age_at_consent + bmi_at_consent + visitId*mpstatrs + interventionId + (1|subjectId)',
-                   "Menopause general" = "value ~ age_at_consent + bmi_at_consent + visitId + mpstatrs + interventionId + (1|subjectId)"
+                   "Menopause general" = "value ~ age_at_consent + bmi_at_consent + visitId + mpstatrs + interventionId + (1|subjectId)",
+                   "Basic model with BMI, Menopause and Age" = 'value ~ visitId*compliance + age_at_consent + bmi_at_consent + mpstatrs + (1 | subjectId)'
     )
   } else if(!is.null(models)){
     models <- models

@@ -1,0 +1,212 @@
+---
+title: "Dropout predictors"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(dplyr)
+library(lmerTest)
+library(lme4)
+library(here)
+library(broom)
+library(MultiAssayExperiment)
+
+here::i_am("dropout-association.qmd")
+source("src/summary_lmm_v2.R")
+```
+
+Here we investigate factors predicting dropout at baseline or change. We investigate both adjusted and unadjusted associations.
+
+# Load data
+
+Normalized data are loaded. To avoid any duplicates for variables (e.g., methylation scores computed in two tissues and assays), assay and variable name are concatenated.
+
+```{r getdata, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+# subset data
+data <- data[,data$visitId=='M0' & data$interventionId != 'S',]
+
+# long format with basic annotation
+df <- as.data.frame(longFormat(data,
+                               colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs', 'dropout_date'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::mutate(dropout = ifelse(is.na(dropout_date), 'no', 'yes'),
+                dropout = factor(dropout, levels = c("no", "yes")))
+
+# Filter variables: (see wilcoxon-tests.qmd for how this was generated:)
+load(here("src/vars.Rdata"))
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::inner_join(vars, by = c('rowname' = 'x',
+                                 'assay' = 'assay')) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+
+# remove full data
+rm(data);gc()
+
+data_baseline  <- df |> dplyr::arrange(subjectId)
+
+# Keep variables for which we have n >= 5 in each group
+data_baseline_filtered <- data_baseline |>
+  dplyr::group_by(rowname) |> 
+  filter(sum(dropout == 'yes') >= 5) |> 
+  ungroup()
+
+variables = unique(data_baseline_filtered$rowname)
+```
+
+# Baseline association
+
++ or - bmi at consent as covariate
+
+```{r}
+pb <- txtProgressBar(width = 50, min = 1, max = length(unique(df$rowname)))
+
+# Function to evaluate association using logistic regression or Kruskal-Wallis test
+evaluate_dropout_association <- function(df, outcome_var = "dropout", method = "logistic",
+                                         model_covariates = 'value') {
+  
+  # Get unique variable names
+  unique_rownames <- unique(df$rowname)
+  
+  # Initialize an empty list to store results
+  results <- lapply(unique_rownames, function(var_name) {
+    
+    setTxtProgressBar(pb, value = which(var_name == unique_rownames))
+    
+    # Filter the dataframe for the current variable
+    df_subset <- df |> dplyr::filter(rowname == var_name)
+    
+    if (method == "logistic") {
+      # Logistic regression for continuous variables
+      model <- glm(as.formula(paste0(outcome_var,  " ~ ", model_covariates)), data = df_subset, family = binomial)
+      result <- tidy(model) |> dplyr::filter(term != '(Intercept)')
+      result$rowname <- var_name
+      return(result)
+      
+    } else if (method == "kruskal") {
+      # Kruskal-Wallis test for continuous variables
+      test <- kruskal.test(value ~ get(outcome_var), data = df_subset)
+      result <- tidy(test)
+      result$rowname <- var_name
+      return(result)
+      
+    } else {
+      return(NULL)  # Skip if neither method is chosen
+    }
+  })
+  
+  # Combine the list of results into a single dataframe
+  results_df <- do.call(rbind, results) |> 
+    tidyr::pivot_wider(id_cols = rowname,
+                       names_from = 'term',
+                       values_from = c('estimate', 'p.value'))
+  
+  return(results_df)
+}
+
+
+simple <- data_baseline_filtered |> dplyr::select(subjectId, bmi_at_consent, dropout) |> dplyr::distinct()
+summary(glm(dropout ~ bmi_at_consent, data = simple, family = binomial))
+
+# Example usage
+# For logistic regression
+results_logistic_basic <- evaluate_dropout_association(data_baseline_filtered, method = "logistic")
+
+results_logistic_with_bmi <- evaluate_dropout_association(data_baseline_filtered, method = "logistic",
+                                                          model_covariates = 'value + bmi_at_consent')
+
+
+
+
+hist(results_logistic_with_bmi$p.value_value)
+hist(results_logistic_with_bmi$p.value_bmi_at_consent)
+hist(results_logistic_basic$p.value_value) # histogram looks very bad.
+
+x <- results_logistic_basic[results_logistic_basic$p.value_value<0.05,] # none look particularly good.
+
+
+source(here("src/FDRcorr.R"))
+
+results_logistic_basic <- FDRcorr(results_logistic_basic) # none remain significant
+```
+
+# Change values at M2
+
++ or - bmi at consent as covariate
+
+```{r}
+# load in data
+load("data/data_normalized_baseline.Rdata")
+
+# subset data
+data <- data[,data$visitId=='M2' & data$interventionId != 'S',]
+
+# long format with basic annotation
+df <- as.data.frame(longFormat(data,
+                               colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs', 'dropout_date'))) |> 
+  dplyr::filter(!is.na(value)) |> 
+  dplyr::mutate(dropout = ifelse(is.na(dropout_date), 'no', 'yes'),
+                dropout = factor(dropout, levels = c("no", "yes")))
+
+# Filter variables: (see wilcoxon-tests.qmd for how this was generated:)
+load(here("src/vars.Rdata"))
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::inner_join(vars, by = c('rowname' = 'x',
+                                 'assay' = 'assay')) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+
+# remove full data
+rm(data);gc()
+
+data_M2  <- df |> dplyr::arrange(subjectId)
+
+# Keep variables for which we have n >= 5 in each group
+data_M2_filtered <- data_baseline |>
+  dplyr::group_by(rowname) |> 
+  filter(sum(dropout == 'yes') >= 5) |> 
+  ungroup()
+
+variables = unique(data_M2_filtered$rowname)
+```
+
+```{r}
+results_logistic_M2_basic <- evaluate_dropout_association(data_M2_filtered, method = "logistic")
+
+results_logistic_M2_with_bmi <- evaluate_dropout_association(data_M2_filtered, method = "logistic",
+                                                          model_covariates = 'value + bmi_at_consent')
+```
+
+* No features have a significant association with dropout after multiple testing correction. Report in text in manuscript.
+
+```{r save.outcome}
+save(results_logistic_basic, results_logistic_with_bmi,
+     results_logistic_M2_basic, results_logistic_M2_with_bmi, file = 'out/dropout_association.Rdata')
+```

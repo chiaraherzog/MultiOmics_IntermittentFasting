@@ -7,7 +7,8 @@
 multi_network_diagram <- function(features,
                                   seed = 7,
                                   layout = layout.fruchterman.reingold,
-                                  legend = T){
+                                  legend = T, expand = T,
+                                  expand_r = 0.3){
   
   # libraries
   library(GGally)
@@ -19,6 +20,14 @@ multi_network_diagram <- function(features,
   # Filter features relevant to the diagram
   inner <- corr |> 
     dplyr::filter(if_any(c('measure1', 'measure2'), ~ grepl(features, .)))
+  
+  if(expand == T){
+  features_exp <- paste0(unique(c(inner$measure1, inner$measure2)), collapse = "|")
+  inner <- corr |> 
+    dplyr::filter(if_any(c('measure1', 'measure2'), ~ grepl(features, .) | 
+                           (if_any(c('measure1', 'measure2'), ~ grepl(features_exp, .) & abs(rmcorr.r) >= expand_r))))
+  features <- features_exp
+  }
   
   # Get vars object to rename features
   load(here("src/vars.Rdata"))
@@ -41,7 +50,7 @@ multi_network_diagram <- function(features,
   features_upd <- unique(c(inner[grepl(features, inner$measure1),]$label1,
                            inner[grepl(features, inner$measure2),]$label2))
                            
-  g <- graph_from_edgelist(as.matrix(inner[,9:10]), directed = F)
+  g <- graph_from_edgelist(as.matrix(inner[,c('label1', 'label2')]), directed = F)
   vertices <- names(V(g))
   assays1 <- inner[match(vertices, c(inner$label1)),]$assay1
   assays2 <- inner[match(vertices, c(inner$label2)),]$assay2

@@ -9,10 +9,11 @@ Extended Data Table 12 is the output of the [repeated measures correlation analy
 
 ```{r}
 library(here)
-here::i_am('et9.qmd')
+here::i_am('et12.qmd')
 source(here("src/loadRMcorr.R"))
 source(here("src/renameVarsrmcorr.R"))
-corr <- loadRMcorr(filter_ASV = T)
+corr <- loadRMcorr(filter_ASV = T) |> 
+  dplyr::filter(padj < 0.05)
 
 rmcorr <- renameVarsrmcorr(corr)
 writexl::write_xlsx(rmcorr, path = here("out/Extended-Data-Table-12.xlsx"))

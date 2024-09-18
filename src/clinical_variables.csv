@@ -55,12 +55,13 @@ bcm,body cellular mass,Body weight and composition
 ecw,extracellular water,Body weight and composition
 scfat,subcutaneous fat,Body weight and composition
 vifat,visceral fat,Body weight and composition
+vifat_scfat_ratio,VAT/SAT ratio,Body weight and composition
 imt_mean,intima media thickness,Vascular features
 pwv,pulse wave velocity,Vascular features
 sysbp,systolic BP,Functional exercise capacity
 diabp,diastolic BP,Functional exercise capacity
-eareaum,epidermal area,Skin histology and transepidermal water loss assay
-ethickum,epidermal thickness,Skin histology and transepidermal water loss assay
-ecells,epidermal n cells,Skin histology and transepidermal water loss assay
-tewl,transepidermal water loss,Skin histology and transepidermal water loss assay
+eareaum,epidermal area,Skin histology and TEWL
+ethickum,epidermal thickness,Skin histology and TEWL
+ecells,epidermal n cells,Skin histology and TEWL
+tewl,transepidermal water loss,Skin histology and TEWL
 rhr,resting heart rate,Functional exercise capacity

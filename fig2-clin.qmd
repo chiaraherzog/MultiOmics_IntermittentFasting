@@ -1,5 +1,5 @@
 ---
-title: "Clinical data (F2, ED3, S1)"
+title: "Clinical data (F2, ED3/4, S1)"
 format:
   html:
     toc: true
@@ -22,7 +22,7 @@ format:
 
 ## Extended data figure 4
 
-![](figures-png/e4-iron.png)
+![](figures-png/e4.png)
 
 ## Supplementary figure 1
 
@@ -59,6 +59,7 @@ cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#83
 source("src/paired_longitudinal_compliance.R")
 source("src/lmm.R")
 source("src/plot_lmm_heatmap_v3.R")
+source("src/plot_lmm_heatmap_v4.R")
 source("src/paired_change_compliance.R")
 source("src/comparison_plots.R")
 ```
@@ -119,12 +120,12 @@ df_change_scaled <- df_change_scaled |>
 
 ### a-l) Linear modeling and main clinical changes
 
-Initially, we illustrate main clinical changes to key variables, such as body mass index, fat mass, subcutaneous fat, or other variables related with cardiovascular activity and health (VO_2 max, HDL).
+Initially, we illustrate main clinical changes to key variables, such as body mass index, fat mass, subcutaneous fat, or other variables related with cardiovascular activity and health (VO_2 peak, HDL).
 
 ```{r main.bmi, fig.width = 12, fig.height = 7, eval = F}
 # A: Weight ; absolute ------------------
 a <- paired_longitudinal_compliance(df_raw, 'weight', p = 'p.signif',
-                               ylab = "<b>weight</b><br>(kg)")
+                                    ylab = "<b>weight</b><br>(kg)")
 
 # B: Weight ; LMM (change) ------------------
 source("src/lmm.R")
@@ -150,39 +151,45 @@ f <- f_mod$plot +
   theme(aspect.ratio = 1.5)
 
 # G: SCfat  --------------
-g <- paired_longitudinal_compliance(df_raw, 'scfat', p = 'p.signif',
+g <- paired_longitudinal_compliance(df_raw, 'scfat', p = 'p.format',
                                     nn = 2,
                                ylab = "<b>subcutaneous fat</b><br>(mm)",
                                filter_high = T)
 # H: VO2Max --------------
-h <- paired_longitudinal_compliance(df_raw, 'vo2max', p = 'p.signif',
+h <- paired_longitudinal_compliance(df_raw, 'vo2max', p = 'p.format',
                                     nn = 2,
                                     ylab = "<b>VO<sub>2</sub>max</b><br>(ml/min/kg)",
                                filter_high = T)
 
 # I: Relmax cap --------------
-i <- paired_longitudinal_compliance(df_raw, 'relmaxcap', p = 'p.signif',
+i <- paired_longitudinal_compliance(df_raw, 'relmaxcap', p = 'p.format',
                                             nn = 2,
                                             ylab = "<b>relative power at peak HR</b><br>(W/kg)",
                                             filter_high = T) 
 
 # J: HDL --------------
-j <- paired_longitudinal_compliance(df_raw, 'hdl', p = 'p.signif',
+j <- paired_longitudinal_compliance(df_raw, 'hdl', p = 'p.format',
                                     nn = 2,
                                     ylab = "<b>HDL cholesterol</b><br>(mg/dL)",
                                filter_high = T)
 
 # K: LDL --------------
-k <- paired_longitudinal_compliance(df_raw, 'ldl', p = 'p.signif',
+k <- paired_longitudinal_compliance(df_raw, 'ldl', p = 'p.format',
                                     nn = 2,
                                     ylab = "<b>LDL cholesterol</b><br>(mg/dL)",
                                filter_high = T)
 
 # L: LDH --------------
-l <- paired_longitudinal_compliance(df_raw, 'ldh', p = 'p.signif',
+l <- paired_longitudinal_compliance(df_raw, 'ldh', p = 'p.format',
                                     nn = 2,
                                     ylab = "<b>lactate dehydrogenase</b><br>(U/L)",
                                filter_high = T)
+
+# # Response to reviewer: VAT/SAT ratio
+# paired_longitudinal_compliance(df_raw, variable = 'vifat_scfat_ratio',
+#                                nn = 2,
+#                                ylab = "∆ VAT/SAT ratio")
+
 
 
 # Set layout
@@ -216,19 +223,17 @@ labels = read.table("src/clinical_variables.csv", header = T, sep = ',')
 ```{r fragmodel, fig.width = 7.75, fig.height = 8.26, eval = F}
 load("out/out_lmm_factor.Rdata")
 
-p <- plot_lmm_heatmap_v3(lmm_data_time = out_lmm$`Minimal model`,
+p <- plot_lmm_heatmap_v4(lmm_data_time = out_lmm$`Minimal model`,
                          lmm_data_compliance = out_lmm$`Basic model with BMI`,
-                         lmm_data_int = out_lmm$`Intervention (higher compliance)`,
                          relabel = labels,
                          relabel_assay = T,
                          age_cor = T,
                          cluster = 'cluster',
-                         padj = F)
-# p
+                         pval_permutation_filter = T)
 ```
 
 ```{r print.fragmodel, eval=F}
-cairo_pdf("out/pdf/2k.pdf", width = 7, height = 8.25)
+cairo_pdf("out/pdf/2k.pdf", width = 6.25, height = 8.25)
 print(p)
 dev.off()
 ```
@@ -291,7 +296,8 @@ Let's look at the contributions:
 l <- factoextra::fviz_screeplot(res.pca,
                            addlabels = F,
                             linecolor = NA,
-                           barcolor = cols[1],barfill = cols[1]) +
+                           barcolor = cols[1],
+                           barfill = cols[1]) +
   theme_bw() +
   theme(panel.grid = element_blank()) +
   labs(x = "PC", y = "Percentage of variance explained (%)",
@@ -453,79 +459,60 @@ dev.off()
 a <- paired_longitudinal_compliance(df_change, 'scfat',
                                nn = 2,
                                ylab = '<b>∆ subcutaneous fat</b><br>(mm)')
-b <- comparison_plots(df_change, 'scfat', nn = 2, ylab = '<b>∆ subcutaenous fat</b><br>(mm)')
 
-c <- paired_longitudinal_compliance(df_change, 'vifat',
+b <- paired_longitudinal_compliance(df_change, 'vifat',
                                nn = 2,
                                ylab = '<b>∆ visceral fat</b><br>(mm)')
-d <- comparison_plots(df_change, 'vifat', nn = 2, ylab = '<b>∆ visceral fat</b><br>(mm)')
 
-e <- paired_longitudinal_compliance(df_change, 'ecw',
+c <- paired_longitudinal_compliance(df_change, 'vifat_scfat_ratio',
+                               nn = 2,
+                               ylab = '<b>∆ visceral/subcutaneous fat ratio</b><br>(mm)')
+
+d <- paired_longitudinal_compliance(df_change, 'ecw',
                                nn = 4,
                                ylab = '<b>∆ extracellular water</b><br>(%)',
                                p = 'p.signif')
-f <- comparison_plots(df_change, 'ecw', nn = 4, ylab = '<b>∆ extracellular water</b><br>(%)')
 
-g <- paired_longitudinal_compliance(df_change, 'bcm',
+e <- paired_longitudinal_compliance(df_change, 'bcm',
                                nn = 4,
                                ylab = '<b>body cellular mass</b><br>(%)',
                                p = 'p.signif')
-h <- comparison_plots(df_change, 'bcm', nn = 4, ylab = '<b>∆ body cellular mass</b><br>(%)')
 
-i <- paired_longitudinal_compliance(df_change, 'vo2max',
+f <- paired_longitudinal_compliance(df_change, 'vo2max',
                                nn = 2,
                                ylab = '<b>∆ VO<sub>2</sub>peak</b><br>(ml/min/kg)')
-j <- comparison_plots(df_change, 'vo2max', nn = 2, ylab = '<b>∆ VO<sub>2</sub>peak</b><br>(ml/min/kg)')
 
-k <- paired_longitudinal_compliance(df_change, 'hdl',
+g <- paired_longitudinal_compliance(df_change, 'hdl',
                                nn = 2,
                                ylab = '<b>∆ HDL cholesterol</b><br>(mg/dL)')
 
-l <- comparison_plots(df_change, 'hdl', nn = 2, ylab = '<b>∆ HDL cholesterol</b><br>(mg/dL)')
-
-m <- paired_longitudinal_compliance(df_change, 'ldl',
+h <- paired_longitudinal_compliance(df_change, 'ldl',
                                nn = 2,
                                ylab = '<b>∆ LDL cholesterol</b><br>(mg/dL)')
 
-n <- comparison_plots(df_change, 'ldl', nn = 2, ylab = '<b>∆ LDL cholesterol fat</b><br>(mg/dL)')
-
-
-o <- paired_longitudinal_compliance(df_change, 'alat',
-                               nn = 2,
-                               ylab = '<b>∆ ALAT</b><br>(U/L)')
-
-p <- comparison_plots(df_change, 'alat', nn = 2, ylab = '<b>∆ ALAT</b><br>(U/L)')
-
-q <- paired_longitudinal_compliance(df_change, 'uricacid',
+i <- paired_longitudinal_compliance(df_change, 'uricacid',
                                nn = 2,
                                ylab = '<b>∆ uric acid</b><br>(U/L)')
-r <- comparison_plots(df_change, 'uricacid', nn = 2, ylab = '<b>∆ uric acid</b><br>(mg/dL)')
 
-
-s <- paired_longitudinal_compliance(df_change, 'ethickum',
+j <- paired_longitudinal_compliance(df_change, 'ethickum',
                                     nn = 2,
                                      ylab = '<b>∆ epidermal thickness</b><br>(µm)')
 
 design <-"
-AAABCCCD
-EEE#FFF#
-GGG#HHH#
-IIIJKKKL
-MMMNOOOP
-QQQRSSS#"
+AABBCC
+DDDEEE
+FFGGHH
+IIJJ##"
 
 plot <- (a+b+c+d+e+f+
-           g+h+i+j+k+l+
-           m+n+o+p+q+r+s) +
+           g+h+i+j) +
   plot_layout(design = design) +
   plot_annotation(tag_levels = 'a') &
   theme(aspect.ratio = NULL)
-
-# print(plot)
 ```
 
 ```{r print.supplementary, eval = F}
-cairo_pdf("figures-pdf/e3.pdf", width = 12, height = 20)
+cairo_pdf("figures-pdf/e3.pdf", width = 11, height = 16)
 print(plot)
 dev.off()
 
@@ -533,10 +520,11 @@ dev.off()
 ggsave(plot,
        filename = 'figures-png/e3.png',
        dpi = 600,
-       width = 12,
-       height = 18,
+       width = 11,
+       height = 16,
        unit = 'in')
 ```
+
 
 ## Extended Data Figure 4
 
@@ -587,7 +575,7 @@ g <- plotFP(df_raw, variable = 'transferrin', nn = 2,
 
 h <- paired_longitudinal_compliance(df_raw, variable = 'vitb9', nn = 2,
                                ylab = '<b>Vitamin B9</b><br>ng/L',
-                               p = 'p.signif') +
+                               p = 'p.format') +
   geom_hline(yintercept = 2, linetype = 'dashed', colour = 'grey50') +
   geom_hline(yintercept = 20, linetype = 'dashed', colour = 'grey50')
 
@@ -598,12 +586,12 @@ plot <- (a|b)/(c|d)/(e|f)/(g|h) +
 
 
 ```{r}
-cairo_pdf(here("figures-pdf/e4-iron.pdf"), width = 8, height = 12.5)
+cairo_pdf(here("figures-pdf/e4.pdf"), width = 8, height = 12.5)
 print(plot)
 dev.off()
 
-ggsave(plot = plot, filename = here("figures-png/e4-iron.png"), width = 8, height = 13,  unit = 'in',
-       dpi = 300)
+ggsave(plot = plot, filename = here("figures-png/e4.png"), width = 8, height = 13,  unit = 'in',
+       dpi = 600)
 
 ```
 
@@ -614,11 +602,13 @@ Here we show some examples of compliance and MCT modulation, using the example o
 ```{r supplementary, fig.width = 8, fig.height = 3.75, eval=F}
 compliance <- paired_longitudinal_compliance(df_change, 'fm',
                                              p = 'p.signif',
-                                             ylab = "<b>∆ absolute fat mass</b><br>(%)")
+                                             ylab = "<b>∆ absolute fat mass</b><br>(%)",
+                                             fdr = T)
 
 intervention <- comparison_plots(df_change,
                                  'fm',
-                                 ylab = "<b>∆ absolute fat mass</b><br>(%)<br>in highly compliant individuals")
+                                 ylab = "<b>∆ absolute fat mass</b><br>(%)<br>in highly compliant individuals",
+                                 fdr = T)
 
 plot <- (compliance | intervention) +
   plot_annotation(tag_levels = 'a')

@@ -1,0 +1,47 @@
+---
+title: "Delta BMI assessment"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(here)
+library(dplyr)
+here::i_am("deltaBMI.qmd")
+```
+
+Here we explore the impact of ∆ BMI on outcomes. Basic models are run including ∆ bmi as a covariate.
+
+```{r eval = T}
+load(here("out/out_lmm_factor.Rdata"))
+x <- out_lmm$`Basic model with BMI and BMI change`
+sig_bmi_delta <- x[x$p.value_dbmi < 0.05,]
+
+source(here("src/FDRcorr.R"))
+y <- FDRcorr(x)
+sig_bmi_delta_adj <- y[y$p.value_dbmi_adj < 0.05,]
+```
+
+`r nrow(sig_bmi_delta_adj)` remain significant after FDR: `r sig_bmi_delta_adj$x`
+
+
+What happens when taking time as ordinal?
+
+```{r eval = T}
+x <- out_lmm$`Basic model with BMI and BMI change - ordered`
+sig_bmi_delta <- x[x$p.value_dbmi < 0.05,]
+source(here("src/FDRcorr.R"))
+y <- FDRcorr(x)
+sig_bmi_delta_adj <- y[y$p.value_dbmi_adj < 0.05,]
+```
+
+`r nrow(sig_bmi_delta_adj)` remain significant: `r sig_bmi_delta_adj$x`

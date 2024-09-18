@@ -1,5 +1,5 @@
 ---
-title: "Immune and metabolome data (F4, ED5/6)"
+title: "Immune and metabolome data (F4, ED6/7)"
 format:
   html:
     toc: true
@@ -67,9 +67,11 @@ source("src/longitudinal.R")
 source("src/comparison_plots.R")
 
 source("src/plot_lmm_heatmap_v3.R")
+source("src/plot_lmm_heatmap_v4.R")
 source("src/pca.R")
 source("src/pcaHeatmap.R")
 source("src/pcaBiplot.R")
+source("src/FDRcorr.R")
 
 # path
 here::i_am("fig4-imm-metabolome.qmd")
@@ -197,7 +199,7 @@ dev.off()
 ```{r delta.immage}
 load(here("data/data_baseline_change.Rdata"))
 
-df <- longFormat(data[,,30], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+df <- longFormat(data[,,'Immune age: general'], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
   as.data.frame() |> 
   dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) |> 
   dplyr::mutate(compliance = factor(compliance, levels = c("low", "medium", "high"))) |> 
@@ -209,7 +211,8 @@ immage_change <- paired_longitudinal_compliance(df,
                                variable = 'ImmAge_gen',
                                p = 'p.signif',
                                ylab = ylab,
-                               nn = 4) 
+                               nn = 4,
+                               fdr = T) 
 ```
 
 ```{r print.delta.immage}
@@ -219,22 +222,8 @@ print(immage_change)
 dev.off()
 ```
 
-### d) Comparison I versus K
 
-```{r immage.i.k}
-immage_comp <- comparison_plots(df, variable = 'ImmAge_gen',
-                                ylab = ylab)
-```
-
-```{r print.immage.i.k}
-cairo_pdf(here("out/pdf/4d.pdf"),
-          width = 3.5, height = 2.5)
-print(immage_comp)
-dev.off()
-```
-
-
-### e) Metabolites overview
+### d) Metabolites overview
 
 ```{r, metab.overview}
 tmp <- rbind(cbind(ref_saliva, sample = 'saliva'),
@@ -266,13 +255,13 @@ names(colsMetab) <- names(table(tmp$Super.class))
 ```
 
 ```{r print.metab.overview}
-cairo_pdf(here("out/pdf/4e.pdf"),
+cairo_pdf(here("out/pdf/4d.pdf"),
           width = 4, height = 3.25)
 print(m)
 dev.off()
 ```
 
-### f) Saliva heatmap (t tests)
+### f) Saliva heatmap (Wilcoxon tests)
 
 ```{r saliva.heatmap}
 labels <- ref_saliva |> 
@@ -286,28 +275,30 @@ labels <- ref_saliva |>
                 x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
 
 load(here("out/wilcoxon-tests.Rdata"))
-time <- wilcoxon_tests$overall |> 
-  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
-  dplyr::filter(grepl("Saliva", assay) & grepl("normalized", assay))
 
-int <- wilcoxon_tests$`I versus K`|> 
-  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
-  dplyr::filter(grepl("Saliva", assay) & grepl("normalized", assay))
+filterFDR <- function(l, t, method, wilcoxon_tests){
+  tmp <- wilcoxon_tests[[l]] |> dplyr::filter(x %in% labels$x) |> 
+    dplyr::filter(grepl(t, assay) & grepl(method, assay)) |> 
+    dplyr::select(-c("p_M2", "p_M4", "p_M6")) |> 
+    dplyr::rename_with(~ stringr::str_remove(., "_adj$"), ends_with("_adj"))
+}
 
-saliva_heatmap <- plot_heatmap_Metab(time, int, relabel = labels, 
+timenorm <- filterFDR('overall', 'Saliva', 'normalized', wilcoxon_tests) |> dplyr::rename(rowname = x)
+
+saliva_heatmap <- plot_heatmap_Metab(timenorm, relabel = labels, 
                    cluster = 'default',
                    change_baseline = T,
-                   padj = F)
+                   padj = F) # already FDR corrected
 ```
 
 ```{r print.saliva.heatmap}
 cairo_pdf(here("out/pdf/4f.pdf"),
-          width = 5.75, height = 4.15)
+          width = 4.9, height = 5.75)
 print(saliva_heatmap)
 dev.off()
 ```
 
-### g) Urine heatmap (t tests)
+### g) Urine heatmap (Linear mixed effects models)
 
 ```{r urine.heatmap}
 labels <- ref_urine |> 
@@ -320,26 +311,283 @@ labels <- ref_urine |>
                 x = ifelse(x == "Acetate.", "Acetate.mM.", x),
                 x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
 
-time <- t_test$overall |> 
-  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
-  dplyr::filter(grepl("Urine", assay) & grepl("normalized", assay))
+## Wilcoxon test (alternative) -> less powerful if LMEs are appropriate; use LME for urine
+# load(here("out/wilcoxon-tests.Rdata"))
+# timenorm <- filterFDR('overall', 'Urine', 'normalized', wilcoxon_tests) |> dplyr::rename(rowname = x)
+# 
+# urine_heatmap <- plot_heatmap_Metab(timenorm, relabel = labels, 
+#                    cluster = 'default',
+#                    change_baseline = T,
+#                    padj = F)
 
-int <- t_test$`I versus K` |> 
-  tidyr::separate(rowname, "_", into = c("assay", "variable"), extra = 'merge') |> 
-  dplyr::filter(grepl("Urine", assay) & grepl("normalized", assay))
+load(here("out/out_lmm_factor.Rdata"))
+time <- out_lmm$`Minimal model` |>
+  dplyr::filter(grepl("Urine nuclear magnetic resonance: normalized", x))
+comp <- out_lmm$`Basic model with BMI` |>
+  dplyr::filter(grepl("Urine nuclear magnetic resonance: normalized", x))
 
-urine_heatmap <- plot_heatmap_Metab(time, int, relabel = labels, 
-                   cluster = 'default',
-                   change_baseline = F)
+urine_heatmap <- plot_lmm_heatmap_v4(time,
+                    comp, relabel = labels,
+                    relabel_assay = T,
+                    colour_assays = list(assay = c("Alkaloids" = "#1B69A1",
+                                                   "Benzenoids" = "#3D93AB",
+                                                   "Carbohydrates" = "#5EABAB",
+                                                   "Fatty Acyls" = "#9CAA93",
+                                                   "Nucleic acids" = "#F29068",
+                                                               "Organic acids" = "#EC6B68",
+                                                               "Organic nitrogen compounds" = "#CC6476",
+                                                               "Organic oxygen compounds" = "#A34B8A",
+                                                               "Organoheterocyclic compounds" = "#7A3B9D",
+                                                               "Polyketides" = "#5F70A8")),
+                    cluster = T)
 ```
 
 ```{r print.urine.heatmap}
 cairo_pdf(here("out/pdf/4g.pdf"),
-          width = 6, height = 2.5)
+          width = 5.25, height = 4.5)
 print(urine_heatmap)
 dev.off()
 ```
 
+## Enrichment analysis for saliva metabolites
+
+```{r enrich.saliva}
+library(MetaboAnalystR)
+
+
+load(here("out/wilcoxon-tests.Rdata"))
+
+filterFDR <- function(l, t, method, wilcoxon_tests){
+  tmp <- wilcoxon_tests[[l]] |> dplyr::filter(x %in% labels$x) |> 
+    dplyr::filter(grepl(t, assay) & grepl(method, assay)) |> 
+    dplyr::select(-c("p_M2", "p_M4", "p_M6")) |> 
+    dplyr::rename_with(~ stringr::str_remove(., "_adj$"), ends_with("_adj"))
+}
+
+timenorm <- filterFDR('overall', 'Saliva', 'normalized', wilcoxon_tests) |> dplyr::rename(rowname = x)
+
+sig_time <- timenorm |> dplyr::filter(if_any(contains("p_"), ~ . < 0.05)) |> 
+  dplyr::mutate(met = rowname) |> 
+  dplyr::mutate(met = ifelse(met == 'X5.Aminopentanoate', '5-Aminopentanoate', met)) |> 
+  dplyr::pull(met)
+
+# Create mSetObj
+mSet<-InitDataObjects("conc", "msetora", FALSE)
+
+#Set up mSetObj with the list of compounds
+mSet<-Setup.MapData(mSet, sig_time)
+
+# Cross reference list of compounds against libraries (hmdb, pubchem, chebi, kegg, metlin)
+mSet<-CrossReferencing(mSet, "name");
+
+# Create the mapping results table
+mSet<-CreateMappingResultTable(mSet)
+
+mSet<-SetMetabolomeFilter(mSet, F);
+
+# Select metabolite set library, refer to smpdb
+mSet_smpdb <-SetCurrentMsetLib(mSet, "smpdb_pathway", 0);
+
+# Calculate hypergeometric score, results table generated in your working directory
+mSet_smpdb<-CalculateHyperScore(mSet_smpdb)
+
+
+p_saliva <- as.data.frame(mSet_smpdb$analSet$ora.mat) |> 
+  dplyr::filter(`Raw p` < 0.05) |> 
+  dplyr::mutate(enrichment.ratio = hits/expected) |> 
+  dplyr::arrange(enrichment.ratio) |> 
+  tibble::rownames_to_column('path') |> 
+  dplyr::mutate(path = factor(path),
+                group = 'saliva metabolome (time)')
+
+
+# plot <- p |> ggplot(aes(x = enrichment.ratio,
+#                 y = forcats::fct_reorder(path, enrichment.ratio),
+#                 size =-log10(`Raw p`),
+#                 colour = -log10(`Raw p`))) +
+#   geom_point() +
+#   labs(x = 'enrichment ratio',
+#        y = '') +
+#   scale_size_continuous(name = '-log10(p value)') +
+#   scale_color_viridis_c(name = '-log10(p value)') +
+#   # scale_colour_continuous(name = 'p value') +
+#   theme_bw() +
+#   theme(panel.grid = element_blank())
+```
+
+## Enrichment analysis for urine metabolites
+
+
+```{r enrich.urine}
+sig_time <- time |> dplyr::filter(if_any(contains("p.value_visitId"), ~ . < 0.05)) |> 
+  dplyr::mutate(met = gsub("Urine nuclear magnetic resonance: normalized_", "", x)) |> 
+  dplyr::mutate(met = ifelse(met == 'Creatine.phosphate', 'Creatine phosphate',
+                             ifelse(met == 'p.Methylhistidine', '3-Methylhistidine', met))) |> 
+  dplyr::pull(met)
+
+# Create mSetObj
+mSet<-InitDataObjects("conc", "msetora", FALSE)
+
+#Set up mSetObj with the list of compounds
+mSet<-Setup.MapData(mSet, sig_time)
+
+# Cross reference list of compounds against libraries (hmdb, pubchem, chebi, kegg, metlin)
+mSet<-CrossReferencing(mSet, "name");
+
+# Create the mapping results table
+mSet<-CreateMappingResultTable(mSet)
+
+mSet<-SetMetabolomeFilter(mSet, F);
+
+# # Select metabolite set library, refer to (urine)
+# mSet_urine <-SetCurrentMsetLib(mSet, "urine", 0);
+# 
+# # Calculate hypergeometric score, results table generated in your working directory
+# mSet_urine <-CalculateHyperScore(mSet_urine)
+# 
+# p <- as.data.frame(mSet_urine$analSet$ora.mat) |> 
+#   dplyr::filter(`Raw p` < 0.05) |> 
+#   dplyr::mutate(enrichment.ratio = hits/expected) |> 
+#   dplyr::arrange(enrichment.ratio) |> 
+#   tibble::rownames_to_column('path') |> 
+#   dplyr::mutate(path = factor(path))
+# 
+# 
+# plot1 <- p |> ggplot(aes(x = enrichment.ratio,
+#                 y = forcats::fct_reorder(path, enrichment.ratio),
+#                 size =-log10(`Raw p`),
+#                 colour = -log10(`Raw p`))) +
+#   geom_point() +
+#   labs(x = 'enrichment ratio',
+#        y = '') +
+#   scale_size_continuous(name = '-log10(p value)') +
+#   scale_color_viridis_c(name = '-log10(p value)') +
+#   # scale_colour_continuous(name = 'p value') +
+#   theme_bw() +
+#   theme(panel.grid = element_blank())
+
+
+# Select metabolite set library, refer to smpdb
+mSet_smpdb <-SetCurrentMsetLib(mSet, "smpdb_pathway", 0);
+
+# Calculate hypergeometric score, results table generated in your working directory
+mSet_smpdb<-CalculateHyperScore(mSet_smpdb)
+
+
+p_urine_all <- as.data.frame(mSet_smpdb$analSet$ora.mat) |> 
+  dplyr::filter(`Raw p` < 0.05) |> 
+  dplyr::mutate(enrichment.ratio = hits/expected) |> 
+  dplyr::arrange(enrichment.ratio) |> 
+  tibble::rownames_to_column('path') |> 
+  dplyr::mutate(path = factor(path),
+                group = 'urine metabolome (time)')
+
+
+# plot2 <- p |> ggplot(aes(x = enrichment.ratio,
+#                 y = forcats::fct_reorder(path, enrichment.ratio),
+#                 size =-log10(`Raw p`),
+#                 colour = -log10(`Raw p`))) +
+#   geom_point() +
+#   labs(x = 'enrichment ratio',
+#        y = '') +
+#   scale_size_continuous(name = '-log10(p value)') +
+#   scale_color_viridis_c(name = '-log10(p value)') +
+#   # scale_colour_continuous(name = 'p value') +
+#   theme_bw() +
+#   theme(panel.grid = element_blank())
+
+# Compliance
+sig_comp <-comp |> dplyr::filter(if_any(contains("p.value_visitId"), ~ . < 0.05)) |> 
+  dplyr::mutate(met = gsub("Urine nuclear magnetic resonance: normalized_", "", x)) |> 
+  dplyr::mutate(met = ifelse(met == 'Creatine.phosphate', 'Creatine phosphate',
+                             ifelse(met == 'X4.Hydroxyphenylacetate', '4-Hydroxyphenyl acetate', met))) |> 
+  dplyr::pull(met)
+
+# Create mSetObj
+mSet<-InitDataObjects("conc", "msetora", FALSE)
+
+#Set up mSetObj with the list of compounds
+mSet<-Setup.MapData(mSet, sig_comp)
+
+# Cross reference list of compounds against libraries (hmdb, pubchem, chebi, kegg, metlin)
+mSet<-CrossReferencing(mSet, "name");
+
+# Create the mapping results table
+mSet<-CreateMappingResultTable(mSet)
+
+mSet<-SetMetabolomeFilter(mSet, F);
+
+# # Select metabolite set library, refer to (urine)
+# mSet_urine <-SetCurrentMsetLib(mSet, "urine", 0);
+# 
+# # Calculate hypergeometric score, results table generated in your working directory
+# mSet_urine <-CalculateHyperScore(mSet_urine)
+# 
+# p <- as.data.frame(mSet_urine$analSet$ora.mat) |> 
+#   dplyr::filter(`Raw p` < 0.05) |> 
+#   dplyr::mutate(enrichment.ratio = hits/expected) |> 
+#   dplyr::arrange(enrichment.ratio) |> 
+#   tibble::rownames_to_column('path') |> 
+#   dplyr::mutate(path = factor(path))
+# 
+# 
+# plot1 <- p |> ggplot(aes(x = enrichment.ratio,
+#                 y = forcats::fct_reorder(path, enrichment.ratio),
+#                 size =-log10(`Raw p`),
+#                 colour = -log10(`Raw p`))) +
+#   geom_point() +
+#   labs(x = 'enrichment ratio',
+#        y = '') +
+#   scale_size_continuous(name = '-log10(p value)') +
+#   scale_color_viridis_c(name = '-log10(p value)') +
+#   # scale_colour_continuous(name = 'p value') +
+#   theme_bw() +
+#   theme(panel.grid = element_blank())
+
+
+# Select metabolite set library, refer to smpdb
+mSet_smpdb <-SetCurrentMsetLib(mSet, "smpdb_pathway", 0);
+
+# Calculate hypergeometric score, results table generated in your working directory
+mSet_smpdb<-CalculateHyperScore(mSet_smpdb)
+
+
+p_urine_comp <- as.data.frame(mSet_smpdb$analSet$ora.mat) |> 
+  dplyr::filter(`Raw p` < 0.05) |> 
+  dplyr::mutate(enrichment.ratio = hits/expected) |> 
+  dplyr::arrange(enrichment.ratio) |> 
+  tibble::rownames_to_column('path') |> 
+  dplyr::mutate(path = factor(path),
+                group = 'urine metabolome (compliance)')
+
+p <- rbind(p_saliva, p_urine_all, p_urine_comp) |> 
+  dplyr::mutate(group = factor(group, levels = c("saliva metabolome (time)",
+                                                 "urine metabolome (time)",
+                                                 "urine metabolome (compliance)")))
+
+plot_enrichment <- p |> ggplot(aes(x = enrichment.ratio,
+                y = forcats::fct_reorder(path, enrichment.ratio),
+                size =-log10(`Raw p`),
+                colour = -log10(`Raw p`))) +
+  geom_point() +
+  labs(x = 'enrichment ratio',
+       y = '') +
+  scale_size_continuous(name = '-log10(p value)') +
+  scale_color_viridis_c(name = '-log10(p value)',guide = "legend") +
+  # scale_colour_continuous(name = 'p value') +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  facet_wrap(~group,
+             scales = "free_y",
+             nrow = 3)
+```
+
+```{r print.enrichment}
+pdf("out/pdf/4h.pdf", width = 5.95, height = 3.25)
+print(plot_enrichment)
+dev.off()
+
+```
 
 ## Extended Data Figure 6
 
@@ -514,23 +762,34 @@ wb_labs_in_order <- populations_wb[match(order$label, populations_wb$pop_name),]
 
 time <- out_lmm$`Minimal model`
 comp <- out_lmm$`Basic model with BMI`
-int <- out_lmm$`Intervention (higher compliance)`
+# int <- out_lmm$`Intervention (higher compliance)`
+# 
+# # filter LMEs
+# wb_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
+#                     lmm_data_compliance = comp,
+#                     lmm_data_int = int,
+#                     relabel = wb_labs_in_order,
+#                     filter_relabel = T,
+#                     relabel_assay = F,
+#                     age_cor = T,
+#                     colour_assays = NULL,
+#                     cluster = F)
 
-# filter LMEs
-wb_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
-                    lmm_data_compliance = comp,
-                    lmm_data_int = int,
-                    relabel = wb_labs_in_order,
-                    filter_relabel = T,
-                    relabel_assay = F,
-                    age_cor = T,
-                    colour_assays = NULL,
-                    cluster = F)
+wb_heat <- plot_lmm_heatmap_v4(lmm_data_time = time,
+                               lmm_data_compliance = comp,
+                               relabel = wb_labs_in_order,
+                               filter_relabel = T,
+                               relabel_assay = F,
+                               age_cor = T,
+                               cluster = F,
+                               pval_permutation_filter = TRUE,
+                               colour_assays = NULL)
+                               
 ```
 
 ```{r print.imm.pop.heatmap}
 cairo_pdf(here("out/pdf/e6d2.pdf"),
-          width = 5.2, height = 4.5)
+          width = 4.9, height = 4.5)
 print(wb_heat)
 dev.off()
 ```
@@ -662,12 +921,21 @@ t_labs_in_order <- populations_t[match(order$label, populations_t$pop_name),] |>
 
 time <- out_lmm$`Minimal model`
 comp <- out_lmm$`Basic model with BMI`
-int <- out_lmm$`Intervention (higher compliance)`
+# int <- out_lmm$`Intervention (higher compliance)`
 
-# filter LMEs
-t_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
+# # filter LMEs
+# t_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
+#                     lmm_data_compliance = comp,
+#                     lmm_data_int = int,
+#                     relabel = t_labs_in_order,
+#                     filter_relabel = T,
+#                     relabel_assay = F,
+#                     age_cor = T,
+#                     colour_assays = NULL,
+#                     cluster = F)
+
+t_heat <- plot_lmm_heatmap_v4(lmm_data_time = time,
                     lmm_data_compliance = comp,
-                    lmm_data_int = int,
                     relabel = t_labs_in_order,
                     filter_relabel = T,
                     relabel_assay = F,
@@ -678,7 +946,7 @@ t_heat <- plot_lmm_heatmap_v3(lmm_data_time = time,
 
 ```{r print.t.pop.heatmap}
 cairo_pdf(here("out/pdf/e6e2.pdf"),
-          width = 5.25, height = 4.75)
+          width = 5, height = 4.75)
 print(t_heat)
 dev.off()
 ```

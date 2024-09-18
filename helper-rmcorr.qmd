@@ -47,12 +47,12 @@ exp <- list('Blood haemogram',
             'Composite methylation scores: blood',
             'Composite methylation scores: buccal',
             'Composite methylation scores: cervical',
-            'Stool microbiome: families',
-            'Saliva microbiome: families',
+            'Stool microbiome: families_clr',
+            'Saliva microbiome: families_clr',
             'Immune age: general',
             'Vascular and body sonography',
-            'Saliva microbiome: ASVs',
-            'Stool microbiome: ASVs')
+            'Saliva microbiome: ASVs_clr',
+            'Stool microbiome: ASVs_clr')
 
 # Get data in long format
 df <- as.data.frame(longFormat(data[,,as.character(exp)],

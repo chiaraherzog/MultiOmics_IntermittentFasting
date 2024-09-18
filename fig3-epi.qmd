@@ -1,5 +1,5 @@
 ---
-title: "Epigenetic data (F3, ED4)"
+title: "Epigenetic data (F3, ED5)"
 format:
   html:
     toc: true
@@ -58,15 +58,17 @@ here::i_am('fig3-epi.qmd')
 ```{r functions}
 source(here("src/filter_if.R"))
 source(here("src/plot_lmm_heatmap_v3.R"))
+
+source(here("src/plot_lmm_heatmap_v4.R"))
 source(here("src/plot_tissue_comparison.R"))
 
 source(here("src/paired_longitudinal_compliance.R"))
-source(here("src/paired_intervention_compliance.R"))
+# source(here("src/paired_intervention_compliance.R"))
 
-source(here("src/paired_change_compliance.R"))
-source(here("src/comparison_plots.R"))
+# source(here("src/paired_change_compliance.R"))
+# source(here("src/comparison_plots.R"))
 
-source(here("src/comparison_change_int.R"))
+# source(here("src/comparison_change_int.R"))
 source(here("src/longitudinal.R"))
 ```
 
@@ -331,7 +333,8 @@ plot <- plot_tissue_comparison(dat_cerv = df_scaled_change_cerv,
                        dat_blood = df_scaled_change_blood,
                        variable = 'ic',
                        variable_blood = 'hepidish_Neutro',
-                       ylab = '∆ immune cell proportion*\nfrom baseline (scaled)')
+                       ylab = '∆ immune cell proportion*\nfrom baseline (scaled)',
+                       fdr = T)
 ```
 
 ```{r print.ic.changes, eval = F}
@@ -371,9 +374,9 @@ comp <- out_lmm$`Basic model with BMI` |>
   dplyr::filter(grepl("Composite", x)) |> 
   dplyr::mutate(x = gsub("Composite methylation scores: ", "", x))
 
-int <- out_lmm$`Intervention (higher compliance)` |> 
-  dplyr::filter(grepl("Composite", x)) |> 
-  dplyr::mutate(x = gsub("Composite methylation scores: ", "", x))
+# int <- out_lmm$`Intervention (higher compliance)` |> 
+#   dplyr::filter(grepl("Composite", x)) |> 
+#   dplyr::mutate(x = gsub("Composite methylation scores: ", "", x))
 
 shared <- vars |> 
   dplyr::group_by(label) |> 
@@ -384,51 +387,78 @@ labs1 <- shared |>
   dplyr::filter(assay2 == 'cervical') |> 
   dplyr::mutate(x = gsub("cervical_", "", x))
 
-cervical <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('cervical', time$x) & time$x %in% shared$x,],
-                         lmm_data_compliance = comp[grepl('cervical', comp$x) & comp$x %in% shared$x,],
-                         lmm_data_int = int[grepl('cervical', int$x) & int$x %in% shared$x,],
-                         relabel = labs1,
-                         relabel_assay = T,
-                         age_cor = F,
-                                cluster = 'cluster',
-                         colour_assays = F,
-                         padj = F)
+# cervical <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('cervical', time$x) & time$x %in% shared$x,],
+#                          lmm_data_compliance = comp[grepl('cervical', comp$x) & comp$x %in% shared$x,],
+#                          lmm_data_int = int[grepl('cervical', int$x) & int$x %in% shared$x,],
+#                          relabel = labs1,
+#                          relabel_assay = T,
+#                          age_cor = F,
+#                                 cluster = 'cluster',
+#                          colour_assays = F,
+#                          padj = F)
+
+cervical <- plot_lmm_heatmap_v4(lmm_data_time = time[grepl('cervical', time$x) & time$x %in% shared$x,],
+                    lmm_data_compliance = comp[grepl('cervical', comp$x) & comp$x %in% shared$x,],
+                    pval_permutation_filter = T,
+                    relabel = labs1,
+                    relabel_assay = T,
+                    age_cor = F,
+                    cluster = 'cluster',
+                    colour_assays = F)
 
 labs1 <- shared |> 
   dplyr::filter(assay2 == 'buccal') |> 
   dplyr::mutate(x = gsub("buccal_", "", x))
 
-buccal <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('buccal', time$x) & time$x %in% shared$x,],
-                                lmm_data_compliance = comp[grepl('buccal', comp$x) & comp$x %in% shared$x,],
-                                lmm_data_int = int[grepl('buccal', int$x) & int$x %in% shared$x,],
-                                relabel = labs1,
-                                relabel_assay = T,
-                                age_cor = F,
-                                cluster = 'cluster',
-                                colour_assays = F,
-                              padj = F)
+# buccal <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('buccal', time$x) & time$x %in% shared$x,],
+#                                 lmm_data_compliance = comp[grepl('buccal', comp$x) & comp$x %in% shared$x,],
+#                                 lmm_data_int = int[grepl('buccal', int$x) & int$x %in% shared$x,],
+#                                 relabel = labs1,
+#                                 relabel_assay = T,
+#                                 age_cor = F,
+#                                 cluster = 'cluster',
+#                                 colour_assays = F,
+#                               padj = T)
+
+buccal <- plot_lmm_heatmap_v4(lmm_data_time = time[grepl('buccal', time$x) & time$x %in% shared$x,],
+                              lmm_data_compliance = comp[grepl('buccal', comp$x) & comp$x %in% shared$x,],
+                              pval_permutation_filter = T,
+                              relabel = labs1,
+                              relabel_assay = T,
+                              age_cor = F,
+                              cluster = 'cluster',
+                              colour_assays = F)
 
 
 labs1 <- shared |> 
   dplyr::filter(assay2 == 'blood') |> 
   dplyr::mutate(x = gsub("blood_", "", x))
 
-blood <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('blood', time$x) & time$x %in% shared$x,],
-                                lmm_data_compliance = comp[grepl('blood', comp$x) & comp$x %in% shared$x,],
-                                lmm_data_int = int[grepl('blood', int$x) & int$x %in% shared$x,],
-                                relabel = labs1,
-                                relabel_assay = T,
-                                age_cor = F,
-                                cluster = 'cluster',
-                                colour_assays = F,
-                             padj = F)
+# blood <- plot_lmm_heatmap_v3(lmm_data_time = time[grepl('blood', time$x) & time$x %in% shared$x,],
+#                                 lmm_data_compliance = comp[grepl('blood', comp$x) & comp$x %in% shared$x,],
+#                                 lmm_data_int = int[grepl('blood', int$x) & int$x %in% shared$x,],
+#                                 relabel = labs1,
+#                                 relabel_assay = T,
+#                                 age_cor = F,
+#                                 cluster = 'cluster',
+#                                 colour_assays = F,
+#                              padj = T)
+
+blood <- plot_lmm_heatmap_v4(lmm_data_time = time[grepl('blood', time$x) & time$x %in% shared$x,],
+                             lmm_data_compliance = comp[grepl('blood', comp$x) & comp$x %in% shared$x,],
+                             pval_permutation_filter = T,
+                             relabel = labs1,
+                             relabel_assay = T,
+                             age_cor = F,
+                             cluster = 'cluster',
+                             colour_assays = F)
 
 h <- (cervical+buccal+blood)
-p <- draw(h, ht_gap = unit(2.5, "cm"))
+p <- draw(h, ht_gap = unit(1.25, "cm"))
 ```
 
 ```{r print.sharedheatmap, eval = F}
-cairo_pdf(here("out/pdf/3c.pdf"), width = 9.5, height = 2.25)
+cairo_pdf(here("out/pdf/3c.pdf"), width = 8.5, height = 2.25)
 print(p)
 dev.off()
 ```
@@ -445,22 +475,32 @@ labs1 <- vars |>
   dplyr::mutate(x = gsub("^cervical_", "", x))
 
 
-cervical_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
+# cervical_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
+#                               lmm_data_compliance = comp[match(ids, time$x),],
+#                               lmm_data_int = int[match(ids, time$x),],
+#                               relabel = labs1,
+#                               relabel_assay = T,
+#                               age_cor = F,
+#                               cluster = 'default',
+#                               colour_assays = F,
+#                               padj = T)
+
+cervical_sep <- plot_lmm_heatmap_v4(lmm_data_time = time[match(ids, time$x),],
                               lmm_data_compliance = comp[match(ids, time$x),],
-                              lmm_data_int = int[match(ids, time$x),],
                               relabel = labs1,
                               relabel_assay = T,
                               age_cor = F,
-                              cluster = 'default',
+                              cluster = F,
                               colour_assays = F,
-                              padj = F)
+                              pval_permutation_filter = T)
+
+cervical_sep@row_order <- c(7, 5, 6, 1, 2, 3, 4) # bring in the correct order
 
 
-cervical_sep@row_order <- c(1, 7, 6, 2, 3, 5, 4) # bring in the correct order
 ```
 
 ```{r print.sep.cervical}
-cairo_pdf(here("out/pdf/3d.pdf"), width = 3.15, height = 1.8)
+cairo_pdf(here("out/pdf/3d.pdf"), width = 3, height = 1.8)
 print(cervical_sep)
 dev.off()
 ```
@@ -476,22 +516,33 @@ labs1 <- vars |>
   dplyr::filter(grepl('buccal', assay2) & grepl(paste0(ids, collapse = '|'), x)) |> 
   dplyr::mutate(x = gsub("^buccal_", "", x))
 
-buccal_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
+# buccal_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
+#                               lmm_data_compliance = comp[match(ids, time$x),],
+#                               lmm_data_int = int[match(ids, time$x),],
+#                               relabel = labs1,
+#                               relabel_assay = T,
+#                               age_cor = F,
+#                               cluster = 'default',
+#                               colour_assays = F,
+#                               padj = T)
+
+buccal_sep <- plot_lmm_heatmap_v4(lmm_data_time = time[match(ids, time$x),],
                               lmm_data_compliance = comp[match(ids, time$x),],
-                              lmm_data_int = int[match(ids, time$x),],
                               relabel = labs1,
                               relabel_assay = T,
                               age_cor = F,
-                              cluster = 'default',
+                              cluster = F,
                               colour_assays = F,
-                              padj = F)
-buccal_sep
-buccal_sep@row_order <- c(1, 2, 3)
+                              pval_permutation_filter = T)
+
+
+# buccal_sep
+buccal_sep@row_order <- c(3, 2, 1)
 buccal_sep
 ```
 
 ```{r print.sep.buccal}
-cairo_pdf(here("out/pdf/3e.pdf"), width = 3.5, height = 1.2)
+cairo_pdf(here("out/pdf/3e.pdf"), width = 3.35, height = 1.2)
 print(buccal_sep)
 dev.off()
 ```
@@ -506,18 +557,26 @@ labs1 <- vars |>
   dplyr::filter(grepl('blood', assay2) & grepl(paste0(ids, collapse = '|'), x)) |> 
   dplyr::mutate(x = gsub("^blood_", "", x))
 
-blood_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
-                                  lmm_data_compliance = comp[match(ids, time$x),],
-                                  lmm_data_int = int[match(ids, time$x),],
-                                  relabel = labs1,
-                                  relabel_assay = T,
-                                  age_cor = F,
-                                  cluster = 'default',
-                                  colour_assays = F,
-                                 padj = F)
+# blood_sep <- plot_lmm_heatmap_v3(lmm_data_time = time[match(ids, time$x),],
+#                                   lmm_data_compliance = comp[match(ids, time$x),],
+#                                   lmm_data_int = int[match(ids, time$x),],
+#                                   relabel = labs1,
+#                                   relabel_assay = T,
+#                                   age_cor = F,
+#                                   cluster = 'default',
+#                                   colour_assays = F,
+#                                  padj = T)
 
-blood_sep
-blood_sep@row_order <- c(1, 2, 6, 7, 3:5)
+blood_sep <- plot_lmm_heatmap_v4(lmm_data_time = time[match(ids, time$x),],
+                              lmm_data_compliance = comp[match(ids, time$x),],
+                              relabel = labs1,
+                              relabel_assay = T,
+                              age_cor = F,
+                              cluster = F,
+                              colour_assays = F,
+                              pval_permutation_filter = T)
+
+blood_sep@row_order <- c(7, 2, 1, 3:5, 6)
 blood_sep
 
 # # Need to fix sclaing to be in line with other heatmaps:
@@ -532,7 +591,7 @@ blood_sep
 ```
 
 ```{r print.sep.blood}
-cairo_pdf(here("out/pdf/3f.pdf"), width = 3.6, height = 1.8)
+cairo_pdf(here("out/pdf/3f.pdf"), width = 3.45, height = 1.8)
 print(blood_sep)
 dev.off()
 ```
@@ -540,30 +599,15 @@ dev.off()
 ### g) WID-qtBC cervical
 
 ```{r qt.cerv, eval = F}
-plotqt <- longitudinal(df_change_cerv,
+qt <- longitudinal(df_change_cerv,
              variable = 'index_mQTL_adj',
-             p = 'p.signif',
-             ylab = '<b>∆ WID-qtBC</b> (<b style="color:#bd647d">cervical</b>)<br>(adjusted for age and ic)') & theme(aspect.ratio = NULL)
+             p = 'p.format',
+             ylab = '<b>∆ WID-qtBC</b> (<b style="color:#bd647d">cervical</b>)<br>(adjusted for age and ic)', fdr = T) & theme(aspect.ratio = NULL)
 ```
 
 ```{r printqtc.cerv, eval = F}
-cairo_pdf("out/pdf/3g.pdf", width = 1.75, height = 2.5)
-print(plotqt)
-dev.off()
-```
-
-### h) WID-OC cervical
-
-```{r oc.cerv, eval = F}
-oc <- comparison_plots(df_change_cerv,
-             variable = 'index_OC_discovery_version_adj',
-             p = NULL,
-             ylab = '<b>∆ WID-OC</b> (<b style="color:#bd647d">cervical</b>)<br>(adjusted for age and ic)') & theme(aspect.ratio = NULL)
-```
-
-```{r print.oc.cerv, eval = F}
-cairo_pdf("out/pdf/3h.pdf", width = 3, height = 2.5)
-print(oc)
+cairo_pdf("out/pdf/3g.pdf", width = 2.5, height = 2.5)
+print(qt)
 dev.off()
 ```
 
@@ -572,13 +616,13 @@ dev.off()
 ```{r line, eval = F}
 l1 <- longitudinal(df_change_buccal,
              variable = 'globalMethylation_line1_adj',
-             p = 'p.signif',
-             ylab = '<b>∆ Global L1 methylation</b> (<b style="color:#48a0af">buccal</b>)<br>(adjusted for age and ic)')
+             p = 'p.format',
+             ylab = '<b>∆ Global L1 methylation</b> (<b style="color:#48a0af">buccal</b>)<br>(adjusted for age and ic)',
+             fdr = T) & theme(aspect.ratio = NULL)
 ```
 
 ```{r print.line, eval = F}
-l1 <- l1 & theme(aspect.ratio = NULL)
-cairo_pdf("out/pdf/3i.pdf", width = 1.75, height = 2.5)
+cairo_pdf("out/pdf/3h.pdf", width = 2.5, height = 2.5)
 print(l1)
 dev.off()
 ```
@@ -588,83 +632,17 @@ dev.off()
 ```{r ageaccelgrimv2, eval = F}
 grimv2 <- longitudinal(df_change_blood,
              variable = 'AgeAccelGrimV2',
-             p = 'p.signif',
-             ylab = '<b>∆ AgeAccelGrim (V2)</b> (<b style="color:#1b69a1">blood</b>)<br>')
+             p = 'p.format',
+             ylab = '<b>∆ AgeAccelGrim (V2)</b> (<b style="color:#1b69a1">blood</b>)<br>', fdr = T)
 
 ```
 
 ```{r print.ageaccelgrimv2, eval = F}
 grimv2 <- grimv2 & theme(aspect.ratio = NULL)
-cairo_pdf("out/pdf/3j.pdf", width = 1.75, height = 2.5)
+cairo_pdf("out/pdf/3i.pdf", width = 2.5, height = 2.5)
 print(grimv2)
 dev.off()
 ```
-
-### k) Chord (not shown)
-
-```{r}
-# Loading repeated measures correlation
-load(here('out/rmcorr.Rdata'))
-load(here('out/rmcorr_change.Rdata'))
-
-# First: filter those that have consistent sign for change
-rm <- rmcorr |>
-  dplyr::filter(grepl("methylation", measure1) & grepl("methylation", measure2)) |> 
-  dplyr::select(measure1, measure2, assay1, assay2, rmcorr.r, p.vals) |> 
-  dplyr::left_join(dplyr::select(rmcorr_change, measure1, measure2, rmcorr.r, p.vals, assay1, assay2),
-                   by = c('measure1', 'measure2', 'assay1', 'assay2'), suffix = c('', '.change')) |> 
-  dplyr::filter(sign(rmcorr.r) == sign(rmcorr.r.change)) 
-
-# Relabel assays Assay labels for the diagram
-assaylabels <- c("Composite methylation scores: buccal" = "Buccal\nmethylation",
-               "Composite methylation scores: cervical" = "Cervical\nmethylation",
-               "Composite methylation scores: blood" = "Blood\nmethylation")
-
-corr <- rm |> 
-  dplyr::mutate(assay1 = recode(assay1, !!! assaylabels),
-                assay2 = recode(assay2, !!! assaylabels)) |> 
-  dplyr::filter(!is.na(p.vals)) |> 
-  dplyr::mutate(padj = p.adjust(p.vals, method = 'fdr')) |> 
-  dplyr::filter(padj < 0.05)
-
-# get into correct format for chord Diagram
-corrdiag <- corr |> 
-  dplyr::select(assay1, assay2, rmcorr.r) |> 
-  dplyr::arrange(rmcorr.r)
-  
-# Colors
-col_cerv = '#bd647d'
-col_buccal = '#48a0af'
-col_blood = '#1b69a1'
-grid.col = c("Cervical\nmethylation" = col_cerv,
-             "Buccal\nmethylation" = col_buccal,
-             "Blood\nmethylation" = col_blood)
-cols_links <- c("#1b69a1", "#48a0af", "white", "#f39668", "#ec6669")
-
-# Order
-order = names(grid.col)
-linkCols <- circlize::colorRamp2(breaks = seq(-1, 1, length.out = 30),
-                                 colorRampPalette(cols_links)(30),
-                                 transparency = 0.1)
-
-lgd_links = Legend(at = c(-1, 0, 1), col_fun = linkCols, 
-    title_position = "topleft", title = "cor (rm)")
-```
-
-
-```{r print.chord}
-cairo_pdf(here("out/pdf/3k.pdf"), width = 2.5, height = 2.5)
-chordDiagram(corrdiag,
-             grid.col = grid.col,
-             annotationTrack = 'grid',
-             col = linkCols,
-             annotationTrackHeight = c(0.09))
-draw(lgd_links, x = unit(55, "mm"), y = unit(20, "mm"), just = c("left"))
-circos.clear()
-dev.off()
-```
-
-
 
 ## Extended Data figure 5
 
@@ -728,39 +706,14 @@ ext_ic <- paired_longitudinal_compliance(df_change_cerv,
                                ylab = '<b>∆ immune cell proportion (ic)</b><br>')
 ```
 
-### d) PCGTgen
-
-```{r pcgtgen.cerv, eval = F}
-ext_pcgtgen_cerv_i <- comparison_plots(df_change_cerv,
-                                     'idx_PCGTgen_adj',
-                               ylab = '<b>∆ PCGTgen</b><br>(adjusted for age and ic)')
-```
-
-### e) PCGTnonage
-
-```{r pcgtnonage.cerv, eval = F}
-ext_pcgtnonage_cerv_i <- comparison_plots(df_change_cerv,
-                                     'idx_PCGTnonage_adj',
-                               ylab = '<b>∆ PCGTnonage</b><br>(adjusted for age and ic)')
-
-
-```
-
-### f) AGE
-
-```{r age.cerv, eval = F}
-ext_AGE_cerv_i <- comparison_plots(df_change_cerv,
-                                   "idx_AGE_adj",
-                                   ylab = '<b>∆AGE</b>')
-```
-
-### g, h) Supplementary PC plot - buccal
+### d, e) Supplementary PC plot - buccal
 
 ```{r pc.buccal}
 load(here("out/pcs-epi.Rdata"))
 
 sizepcdot = 3
 sizeicdot = 0.7
+
 # Buccal
 summ <- summary(pc_buccal$pc)
 
@@ -804,7 +757,7 @@ scree_buccal <- as.data.frame(t(summ$importance)) |>
        x = '')
 ```
 
-### i) Buccal BC
+### f) Buccal BC
 
 ```{r}
 buccalbc <- paired_longitudinal_compliance(df_change_buccal,
@@ -814,7 +767,7 @@ buccalbc <- paired_longitudinal_compliance(df_change_buccal,
 
 ```
 
-### j) WID-general age
+### g) WID-general age
 
 ```{r}
 buccalage <- paired_longitudinal_compliance(df_change_buccal,
@@ -824,7 +777,7 @@ buccalage <- paired_longitudinal_compliance(df_change_buccal,
 
 ```
 
-### k, l) Supplementary PC plot - blood
+### h, i) Supplementary PC plot - blood
 
 ```{r pc.blood}
 load(here("out/pcs-epi.Rdata"))
@@ -876,16 +829,7 @@ scree_blood <- as.data.frame(t(summ$importance)) |>
        x = '')
 ```
 
-### m) CausAge
-
-```{r}
-causeage <- paired_longitudinal_compliance(df_change_blood,
-                               'CausAge',
-                               ylab = '<b>∆ CausAge</b>',
-                               p = 'p.signif')
-```
-
-### n) AdaptAge
+### j) AdaptAge
 
 ```{r adapt, eval = F}
 adaptage <- paired_longitudinal_compliance(df_change_blood,
@@ -894,27 +838,7 @@ adaptage <- paired_longitudinal_compliance(df_change_blood,
                                p = 'p.signif')
 ```
 
-### o) DamAge
-
-```{r}
-damage <- paired_longitudinal_compliance(df_change_blood,
-                               'DamAge',
-                               ylab = '<b>∆ DamAge</b>',
-                               p = 'p.signif')
-```
-
-
-### p) PhenoAge
-
-```{r}
-phenoage <- paired_longitudinal_compliance(df_change_blood,
-                               'PhenoAge',
-                               ylab = '<b>∆ PhenoAge</b>',
-                               p = 'p.signif')
-```
-
-
-### q) DunedinPACE
+### k) DunedinPACE
 
 ```{r}
 dunedinpace <- paired_longitudinal_compliance(df_change_blood,
@@ -935,31 +859,26 @@ scree_blood <- scree_blood + labs(subtitle = 'blood samples')
 
 design <- "
 AABBBCCC###
-EEEFFFGGG##
-HHIIIJJJKKK
-LLMMMNNNOOO
-PPPQQQRRR##"
+DDEEEFFFGGG
+HHIIIJJJKKK"
 
 plot <- (scree_cerv + ic_pc_cerv + ext_ic +
-           ext_pcgtgen_cerv_i + ext_pcgtnonage_cerv_i + ext_AGE_cerv_i +
            scree_buccal + ic_pc_buccal + buccalbc + buccalage +
-           scree_blood + ic_pc_blood + adaptage + damage +
-           causeage + phenoage+ dunedinpace) +
-# + ext3b + ext3c + ext3d + ext3e + ext3f + ext3g + ext3h) +
+           scree_blood + ic_pc_blood + adaptage + dunedinpace) +
   plot_layout(design = design) +
   plot_annotation(tag_levels = 'a') &
   theme(aspect.ratio = NULL)
 
 cairo_pdf(here("figures-pdf/e5.pdf"),
-          width = 15,
-          height = 19)
+          width = 16,
+          height = 13)
 print(plot)
 dev.off()
 
 ggsave(filename = here("figures-png/e5.png"),
        plot = plot,
-       width = 15,
-       height = 19,
+       width = 16,
+       height = 13,
        units = 'in')
 ```
 

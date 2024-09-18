@@ -10,7 +10,9 @@ renameVarsLME <- function(
   load(here("src/vars.Rdata"))
   
   vars <- vars |> 
-    dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label))
+    dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label)) |> 
+    dplyr::select(x, label, assay, assay2) |> 
+    dplyr::filter(!grepl("ASVs$|families_clr", assay))
   
   # Filter and rename vars
   n <- names(out_lmm)
@@ -29,7 +31,7 @@ renameVarsLME <- function(
       dplyr::mutate(variable = ifelse(!is.na(label), label, x),
                     assay = ifelse(!is.na(assay2), assay2, assay)) |> 
       dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
-      dplyr::mutate(across(!contains(c("variable", "assay")), ~ signif(., digits = 4))) |> 
+      dplyr::mutate(across(!contains(c("variable", "assay", "group")), ~ signif(., digits = 4))) |> 
       
       dplyr::arrange(assay) |> 
       dplyr::relocate(assay, variable) |> 

@@ -2,9 +2,8 @@
 #' A function to plot (t test) metabolome results plus assay annotation
 #' 
 #' @param time t test results from high compliance models
-#' @param int Intervention t test results
 #' @param cols Colour palette (leave blank for default colours [recommended], but can be altered if desired)
-#' @param relabel (optional). Data frame supplying labels for the plot. x = variable, label = relabelled variable
+#' @param relabel (optional). Data frame supplying labels for the plot. x = rowname, label = relabelled rowname
 #' @param filter_relabel (optional) boolean: if supplying new labels, should only variables provided in that dataframe be plotted? default to TRUE
 #' @param relabel_assay (optional). Set to TRUE if you would like to rename the assay. Assay names should be provided in the relabel parameter, under column name 'assay2'
 #' @param colour_assays (optional) if not NULL, list of default colours will be used for assays. This only works for clinical variables so far.
@@ -12,7 +11,7 @@
 #' @param change_baseline Should the change be converted in % from baseline mean?
 #' @return ComplexHeatmap object
 
-plot_heatmap_Metab <- function(time, int,
+plot_heatmap_Metab <- function(time,
                                 cols = c("#1b69a1",
                                          "#48a0af",
                                          "#f39668",
@@ -45,53 +44,46 @@ plot_heatmap_Metab <- function(time, int,
   
   # Filter metabolites
   tmp1 <- time |> 
-    dplyr::select(assay, variable, M2:p_M6) |> 
-    dplyr::select(-contains("sd"))
-  
-
-  tmp2 <- int |>
-    dplyr::mutate(M2 = M2_K - M2_I,
-                  M4 = M4_K - M4_I,
-                  M6 = M6_K - M6_I) 
-  
-  if(change_baseline == T){
-    tmp2 <- tmp2 |> 
-      dplyr::left_join(dplyr::select(time, assay, variable, mean_baseline), by = c('assay', 'variable')) |> 
-      dplyr::mutate(across(c(M2, M4, M6), ~ ./mean_baseline*100))
-  }
-  
-  tmp2 <- tmp2 |> 
-    dplyr::select(c(assay, variable, M2, p_M2, M4, p_M4, M6, p_M6)) |> 
-    dplyr::rename_with(~ paste0("diff_", .x), starts_with(c("p_", "M")))
+    dplyr::select(assay, rowname, M2, p_M2, M4, p_M4, M6, p_M6)
   
   tmp <- tmp1 |> 
-    dplyr::left_join(tmp2, by = c('variable', 'assay'))|> 
-    dplyr::filter(variable %in% relabel$x) |> 
-    dplyr::left_join(relabel, by = c("variable" = "x",
+    dplyr::filter(rowname %in% relabel$x) |> 
+    dplyr::left_join(relabel, by = c("rowname" = "x",
                                      'assay' = 'assay')) |> 
-    dplyr::filter(! p_M2 %in% c("", " ") |! p_M4 %in% c("", " ") | ! p_M6 %in% c("", " ") | ! diff_p_M2 %in% c("", " ") | ! diff_p_M4 %in% c("", " ") | ! diff_p_M6 %in% c("", " ")) |> 
+    dplyr::filter(! p_M2 %in% c("", " ") |! p_M4 %in% c("", " ") | ! p_M6 %in% c("", " ")) |> 
     dplyr::arrange(assay2)
   
   
   if(padj == T){
-    tmp <- tmp |> dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ p.adjust(., method = 'BH')))
+    tmp <- tmp |> dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ p.adjust(., method = 'fdr')))
   }
   
   tmp <- tmp |>  
-    dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ ifelse(is.na(.), "", gtools::stars.pval(.)))) |>
-    dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ gsub("[.]", "", .)))
+    dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ ifelse(is.na(.), "", 
+                                                                             ifelse(. < 0.05,
+                                                                                    paste0("<b>",gtools::stars.pval(.),"</b>"), 
+                                                                                    "")))) |>
+    dplyr::mutate(across(starts_with("p_") | starts_with("diff_p"), ~ gsub("<b>[.]</b>", "", .)))
       
   
   # Indices
   ind_est <- grep("^M2|^M4|^M6|^diff_M2|^diff_M4|^diff_M6", colnames(tmp))  
-  ind_p <- grep("^p_|^diff_p", colnames(tmp))
+  ind_p <- grep("^p", colnames(tmp))
+  row_labs <- ifelse(grepl("<b>", tmp$p_M6, fixed = TRUE),
+                     paste0("**", tmp$label, "**"),
+                     tmp$label)
   
-  # Column splits and labels
-  col_split <- rep(c("time", "MCT"), each = 3)
-  col_split <- factor(col_split, levels = c("time", "MCT"))
-  col_labs <- rep(c("M2", "M4", "M6"), 2)
-  
-  row_labs <- tmp$label
+  cell_fun <- function(j, i, x, y, width, height, fill) {
+    full_text <- as.matrix(tmp[, ind_p])[i, j]
+    if (grepl("<b>", full_text)) {
+      clean_text <- gsub("<b>|</b>", "", full_text)
+      grid.text(clean_text, x = x, y = y, 
+                gp = gpar(fontsize = 7, fontface = "bold", fontfamily = "Arial Black"), just = "centre")
+    } else {
+      grid.text(full_text, x = x, y = y, 
+                gp = gpar(fontsize = 7, fontface = "plain", col = 'grey20'), just = "centre")
+    }
+  }
   
   ha <- rowAnnotation(class = tmp$assay2,
                       col = colour_assays)
@@ -115,20 +107,14 @@ plot_heatmap_Metab <- function(time, int,
                  left_annotation = ha,
                  
                  # Column details
-                 column_labels = col_labs,
-                 column_title_gp = grid::gpar(fontsize = 10),
-                 column_split = col_split,
                  cluster_columns = F,
-                 cluster_column_slices = F,
                  show_column_dend = F,
                  
                  # Row side colours
                  
                  
                  # Annotation
-                 cell_fun = function(j, i, x, y, width, height, fill) {
-                   grid.text(as.matrix(tmp[,ind_p])[i, j], x, y, gp = gpar(fontsize = 7), just = "centre")
-                 },
+                 cell_fun = cell_fun,
                  
                  # Colours
                  na_col = 'white',
@@ -166,20 +152,14 @@ plot_heatmap_Metab <- function(time, int,
                  left_annotation = ha,
                  
                  # Column details
-                 column_labels = col_labs,
-                 column_title_gp = grid::gpar(fontsize = 10),
-                 column_split = col_split,
                  cluster_columns = F,
-                 cluster_column_slices = F,
                  show_column_dend = F,
                  
                  # Row side colours
                  
                  
                  # Annotation
-                 cell_fun = function(j, i, x, y, width, height, fill) {
-                   grid.text(as.matrix(tmp[,ind_p])[i, j], x, y, gp = gpar(fontsize = 7), just = "centre")
-                 },
+                 cell_fun = cell_fun,
                  
                  # Colours
                  na_col = 'white',
@@ -216,21 +196,14 @@ plot_heatmap_Metab <- function(time, int,
                  left_annotation = ha,
                  
                  # Column details
-                 column_labels = col_labs,
-                 column_title_gp = grid::gpar(fontsize = 10),
-                 column_split = col_split,
                  cluster_columns = F,
-                 cluster_column_slices = F,
                  show_column_dend = F,
                  
                  # Row side colours
                  
                  
                  # Annotation
-                 cell_fun = function(j, i, x, y, width, height, fill) {
-                   grid.text(as.matrix(tmp[,ind_p])[i, j], x, y, gp = gpar(fontsize = 7), just = "centre")
-                 },
-                 
+                 cell_fun = cell_fun,
                  # Colours
                  na_col = 'white',
                  col = circlize::colorRamp2(breaks = seq(-max(abs(na.omit(tmp[,ind_est]))),

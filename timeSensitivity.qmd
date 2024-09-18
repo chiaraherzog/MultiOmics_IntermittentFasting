@@ -1,0 +1,229 @@
+---
+title: "Sensitivity analysis: time"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+# Extended Data Figure 11
+
+![](figures-png/e12-model-sensitivity.png)
+
+# Code
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+library(ggvenn)
+library(dplyr)
+library(ggplot2)
+library(ggtext)
+library(viridis)
+```
+
+
+```{r libs, eval = T}
+here::i_am("timeSensitivity.qmd")
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+```
+
+Here we explore the impact of time as ordinal or continuous variable.
+
+# Load data
+
+```{r}
+load(here("out/out_lmm_factor.Rdata"))
+factor <- out_lmm
+
+load(here("out/out_lmm_continuous.Rdata"))
+continuous <- out_lmm
+
+# Run FDR correction across all
+source(here("src/FDRcorr.R"))
+
+factor <- lapply(factor, FDRcorr)
+continuous <- lapply(continuous, FDRcorr)
+```
+
+## Minimal model: Overlap of significance with time.
+
+```{r}
+minimal_Cat <- factor$`Minimal model` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj') 
+
+cat <- minimal_Cat |> 
+  dplyr::filter(rowSums(across(c(p.value_visitIdM6_adj, p.value_visitIdM4_adj, p.value_visitIdM2_adj), ~ . < 0.05)) > 0)
+  
+minimal_Ord <- factor$`Minimal model (ordered)` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj') 
+
+ord <- minimal_Ord |> 
+  dplyr::filter(rowSums(across(c( p.value_visitIdOrdered.C_adj,  p.value_visitIdOrdered.L_adj,  p.value_visitIdOrdered.Q_adj), ~ . < 0.05)) > 0)
+  
+
+minimal_Cont <- continuous$`Minimal model` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj') 
+
+cont <- minimal_Cont |> 
+  dplyr::filter(p.value_time_adj < 0.05)
+
+list <- lapply(list(cat, ord, cont), function(l){
+  l |> dplyr::mutate(x = paste0(assay, x)) |> dplyr::pull(x)
+})
+
+names(list) <- c("Time as factor", "Time as ordinal", "Time as numeric")
+
+a <- ggvenn::ggvenn(list,stroke_size = 0.5, set_name_size = 4,
+               text_size = 3,
+               fill_color = cols[c(1, 3, 6)])
+
+
+# correlation of estimates (cat/ordinal)
+est <- minimal_Cat |> dplyr::full_join(minimal_Ord, by = c("assay", "x"), suffix = c("cat", "ord"))
+
+b <- est |> ggplot(aes(x = estimate_visitIdM6,
+                  y = estimate_visitIdOrdered.L)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor() +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'estimate (M6)<br>time as <b>factor</b>',
+       y = 'estimate (L)<br>time as <b>ordinal</b>')
+
+c <- est |> ggplot(aes(x = p.value_visitIdM6,
+                  y = p.value_visitIdOrdered.L)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor(method = 'spearman') +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'p value (M6)<br>time as <b>factor</b>',
+       y = 'p value (L)<br>time as <b>ordinal</b>')
+
+# correlation of estimates (cat-linear)
+est <- minimal_Cat |> dplyr::full_join(minimal_Cont, by = c("assay", "x"), suffix = c("cat", "ord"))
+
+d <- est |> ggplot(aes(x = estimate_visitIdM6,
+                       y = estimate_time)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor() +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'estimate (M6)<br>time as <b>factor</b>',
+       y = 'estimate (time)<br>time as <b>continuous</b>')
+
+
+e <- est |> ggplot(aes(x = p.value_visitIdM6,
+                       y = p.value_time)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor(method = 'spearman') +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'p value (M6)<br>time as <b>factor</b>',
+       y = 'p value (time)<br>time as <b>continuous</b>')
+
+
+((a) | ((b/c)|(d/e))) + plot_layout(guides = 'collect')
+```
+
+## Interaction model: Overlap of significance with time.
+
+```{r}
+minimal_Cat <- factor$`Basic model with BMI` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj')  
+
+cat <- minimal_Cat |> 
+  dplyr::filter(rowSums(across(c(`p.value_visitIdM6:compliancehigh_adj`, `p.value_visitIdM4:compliancehigh_adj`, `p.value_visitIdM2:compliancehigh_adj`), ~ . < 0.05)) > 0)
+  
+
+minimal_Ord <- factor$`Basic model with BMI - ordered` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj')
+
+ord <- minimal_Ord |> 
+dplyr::filter(rowSums(across(c(`p.value_visitIdOrdered.C:compliancehigh_adj`, 
+                               `p.value_visitIdOrdered.L:compliancehigh_adj`, 
+                               `p.value_visitIdOrdered.Q:compliancehigh_adj`), ~ . < 0.05)) > 0)
+  
+
+minimal_Cont <- continuous$`Basic model with BMI` |>
+  dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj') 
+
+cont <- minimal_Cont |> 
+  dplyr::filter(`p.value_time:compliancehigh_adj` < 0.05)
+
+list <- lapply(list(cat, ord, cont), function(l){
+  l |> dplyr::mutate(x = paste0(assay, x)) |> dplyr::pull(x)
+})
+names(list) <- c("Time as factor", "Time as ordinal", "Time as numeric")
+
+f <- ggvenn::ggvenn(list,stroke_size = 0.5, set_name_size = 4,
+               text_size = 3,
+               fill_color = cols[c(1, 3, 6)])
+
+
+# correlation of estimates (cat/ordinal)
+est <- minimal_Cat |> dplyr::full_join(minimal_Ord, by = c("assay", "x"), suffix = c("cat", "ord"))
+
+g <- est |> ggplot(aes(x = `estimate_visitIdM6:compliancehigh`,
+                  y = `estimate_visitIdOrdered.L:compliancehigh`)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor() +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'estimate (time X compliance)<br>time as <b>factor</b>',
+       y = 'estimate (time X compliance)<br>time as <b>ordinal</b>')
+
+h <- est |> ggplot(aes(x = `p.value_visitIdM6:compliancehigh`,
+                  y = `p.value_visitIdOrdered.L:compliancehigh`)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor(method = 'spearman') +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'p value (time X compliance)<br>time as <b>factor</b>',
+       y = 'p value (time X compliance)<br>time as <b>ordinal</b>')
+
+# correlation of estimates (cat-linear)
+est <- minimal_Cat |> dplyr::full_join(minimal_Cont, by = c("assay", "x"), suffix = c("cat", "num"))
+
+i <- est |> ggplot(aes(x = `estimate_visitIdM6:compliancehigh`,
+                       y = `estimate_time:compliancehigh`)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor() +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'estimate (time X compliance)<br>time as <b>factor</b>',
+       y = 'estimate (time X compliance)<br>time as <b>continuous</b>')
+
+
+j <- est |> ggplot(aes(x = `p.value_visitIdM6:compliancehigh`,
+                       y = `p.value_time:compliancehigh`)) +
+  geom_hex(bins = 70) +
+  ggpubr::stat_cor(method = 'spearman') +
+  theme_bw() +
+  theme(axis.title = element_markdown()) +
+  scale_fill_viridis(option = 'H',limits = c(0, 80)) +
+  labs(x = 'p value (time X compliance)<br>time as <b>factor</b>',
+       y = 'p value (time X compliance)<br>time as <b>continuous</b>')
+```
+
+
+
+# Prepare a figure
+
+```{r}
+library(patchwork)
+plot <- (((a + plot_annotation(subtitle = 'Basic model'))/(f + plot_annotation(subtitle = 'Interaction model'))) | ((b|c)/(d|e)/(g|h)/(i|j))) + plot_layout(guide = 'collect') + plot_annotation(tag_levels = 'a')
+
+plot
+
+
+ggsave(plot, file = "figures-png/e12-model-sensitivity.png", width = 12, height = 10, dpi = 600)
+```

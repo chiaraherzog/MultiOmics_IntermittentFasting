@@ -1,5 +1,5 @@
 ---
-title: "Integrative analysis"
+title: "Figure 7: Integrative analysis"
 format:
   html:
     toc: true
@@ -12,21 +12,21 @@ format:
 
 ::: {.panel-tabset}
 
-## Main figure 6
+## Main figure 7
 
 ![](figures-png/figure6-integration.png)
 
-## Extended Data Figure 11
-
-![](figures-png/e11.png)
-
 ## Extended Data Figure 12
 
-![](figures-png/e12.png)
+![](figures-png/e13.png)
 
 ## Extended Data Figure 13
 
-![](figures-png/e13.png)
+![](figures-png/e14-integration.png)
+
+## Extended Data Figure 14
+
+![](figures-png/e15-iron-integration.png)
 
 :::
 
@@ -62,8 +62,9 @@ suppressMessages(suppressWarnings({
 
 cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
 
-source(here("src/rmcorr_plot.R"))
 here::i_am("fig6-integration.qmd")
+source(here("src/rmcorr_plot.R"))
+
 ```
 
 ## Main figure
@@ -78,13 +79,22 @@ here::i_am("fig6-integration.qmd")
 ```{r}
 # Select variables to keep
 load(here("src/vars.Rdata"))
-load(here("out/out_lmm_factor.Rdata"))
-load(here("out/t-tests.Rdata"))
-source(here('src/bubble_summary.R'))
+vars <- vars |> dplyr::filter(!grepl("ASV", assay))
 
-dat <- bubble_summary(as.data.frame(out_lmm$`Minimal model`),
-                      as.data.frame(t_test$overall),
+load(here("out/out_lmm_factor.Rdata"))
+
+source(here("src/FDRcorr.R"))
+out_lmm <- FDRcorr(out_lmm$`Minimal model`, append = F)
+
+load(here("out/wilcoxon-tests.Rdata"))
+wilcox <- wilcoxon_tests$overall |> dplyr::select(-starts_with("p") | (starts_with("p") & ends_with("_adj")))
+colnames(wilcox) <- gsub("_adj", "", colnames(wilcox))
+
+source(here('src/bubble_summary.R'))
+dat <- bubble_summary(out_lmm,
+                      wilcox,
                       vars = vars)
+
 
 dat <- dat |> 
   dplyr::mutate(group = case_when(grepl("Body|Functional|Routine|Skin|Spiro|Subcut|Vascular", assay) ~ "Clinical features",
@@ -99,30 +109,38 @@ dat <- dat |>
 # dat$assay <- factor(dat$assay, levels = rev(omes))
 # dat <- dat |> arrange(assay)
 
-dat |> 
+bubble_plot <-  dat |> 
   ggplot(aes(x = visitId, y = assay,
-             size = num_significant,
-             fill = proportion_significant)) +
+             fill = num_significant,
+             size = proportion_significant)) +
   geom_point(shape = 21, alpha = 0.8) +
   scale_size_continuous(range = c(0, 12)) +
   scale_fill_gradientn(colors = cols[c(8, 1, 2, 3, 5, 6)]) +
   labs(x = "", y = "",
-       fill = "Proportion significant features",
-       size = "Number of significant features") +
+       fill = "Number of significant features",
+       size = "Proportion of significant features") +
   theme_bw() +
   theme(panel.grid = element_blank(),
-        strip.text.x = element_blank(),
+        strip.background.x = element_rect(fill = NA,
+                                          color = NA),
         axis.ticks.y = element_blank(),
-        legend.position = 'bottom',legend.direction = 'vertical',
+        legend.position = 'bottom',
+        legend.direction = 'vertical',
         axis.text.y = element_text(hjust = 1),
         strip.background.y = element_rect(fill = NA,
                                           color = NA)) +
-  facet_grid(group~1,drop = T,scales = 'free_y',
-             space = 'free_y') +
+  facet_grid(group~"",drop = T,scales = 'free_y',space = 'free_y'
+             ) +
   coord_cartesian(clip = 'off')
 ```
 
-#### a_1) Bubble plot, I versus K separately
+```{r print.bubbles.all}
+cairo_pdf(here("out/pdf/6a.pdf"), width = 4.5, height = 8.5)
+print(bubble_plot)
+dev.off()
+```
+
+#### a_1) Bubble plot, I versus K separately (not used)
 
 * When do significant changes happen in which ome?
 * Reran minimal model on I and K groups separately
@@ -327,7 +345,7 @@ print(bubble_plot)
 dev.off()
 ```
 
-#### a_3) Potential diagram - up/down by feature?
+#### a_3) Potential diagram - up/down by feature? (not used)
 
 ```{r}
 # Select variables to keep
@@ -392,6 +410,9 @@ source(here("src/loadRMcorr.R"))
 
 corr <- loadRMcorr(filter_ASV = T)
 
+corr <- corr |> 
+  dplyr::filter(padj < 0.05)
+
 # get into correct format for chord Diagram
 corrdiag <- corr |> 
   dplyr::filter(!grepl("ASV", assay1) & !grepl("ASV", assay2)) |> 
@@ -430,6 +451,9 @@ grid.col = c("ImmuneSMK" = col12[1],
              "Urine\nmetabolome" = col12[3],
              "Saliva\nmetabolome" = col12[2])
 
+
+
+# x <- corr2[grepl("methylation", corr2$assay1) & grepl("methylation", corr2$assay2),] # only one overlap for methylation
 
 # Gaps
 gaps = c("Flow cytometry:\nimmune cells" = 3,
@@ -477,7 +501,8 @@ features = 'PhenoAge|CausAge|DamAge|AdaptAge|AgeAccel|DunedinPACE|index_OC|index
 
 cairo_pdf(here("out/pdf/6c.pdf"), width = 11, height = 9)
 multi_network_diagram(features = features,
-                      seed = 7)
+                      seed = 7,
+                      expand_r = 0.35)
 dev.off()
 
 # Note, some of these correlations are not strong/verified:
@@ -506,7 +531,7 @@ source("src/mefisto_plots.R")
 
 ```
 
-## I/K groups mefisto
+### I/K groups mefisto
 
 ```{r}
 
@@ -517,7 +542,6 @@ model <- load_model("out/mefisto/mefisto_time_intervention.hdf5")
 
 # reload the omes
 df_dat <- read.table(file="out/mefisto/mefisto_input_intervention.txt",sep="\t",header=T)
-
 
 
 features <- c("interventionId", "subjectId", "visitId", "compliance", "mpstatrs", "age_at_consent", "bmi_at_consent", "smoking_ever", "etohu_curr", "diet", "preg_ever")
@@ -723,7 +747,7 @@ a <- tmp |>
 ### b) hEpidish neutro and Neutrophils
 
 ```{r}
-ind = 40
+ind = 1
 m1 = corr$measure1[ind]
 m2 = corr$measure2[ind]
 lab1 = "Neutrohil count (normalised)"
@@ -734,7 +758,7 @@ b <- rmcorr_plot(m1, m2, lab1, lab2)
 ### c) BCM/Creatinine
 
 ```{r}
-ind = 376
+ind = 140
 m1 = corr$measure1[ind]
 m2 = corr$measure2[ind]
 lab1 = 'Body cellular mass (normalised)'
@@ -742,92 +766,63 @@ lab2 = 'Creatinine (normalised)'
 c <- rmcorr_plot(m1, m2, lab1, lab2)
 ```
 
-### d) Arginine and cholesterol
-
-```{r}
-ind = 549
-m1 = corr$measure1[ind]
-m2 = gsub("-log", "", corr$measure2[ind])
-m2 = corr$measure2[ind]
-lab1 = 'Cholesterol (normalised)'
-lab2 = 'Arginine (normalised)'
-d <- rmcorr_plot(m1, m2, lab1, lab2)
-```
-
-### e) GrimAge and Neutrophils
+### d) GrimAge and Neutrophils
 
 ```{r grimage.neutro}
-ind = 43
+ind = 4
 m1 = corr$measure1[ind]
 m2 = corr$measure2[ind]
 lab1 = "Neutrohil count (normalised)"
 lab2 = "AgeAccelGrimV2 (normalised)"
-e <- rmcorr_plot(m1, m2, lab1, lab2)
+d <- rmcorr_plot(m1, m2, lab1, lab2)
 ```
 
-### f) GrimAge diagram
+### e) GrimAge diagram
 
 ```{r}
-f <- rmcorr_diag("AgeAccelGrim")
+source(here("src/rmcorr_diag.R"))
+e <- rmcorr_diag("AgeAccelGrim")
+
+# not shown:
+rmcorr_diag("DunedinPACE")
+rmcorr_diag("DamAge")
+rmcorr_diag("AdaptAge")
 ```
 
-### g) PhenoAge diagram
+### f) PhenoAge diagram
 
 ```{r}
-g <- rmcorr_diag("PhenoAge")
+f <- rmcorr_diag("PhenoAge")
 ```
 
-### h) DunedinPACE diagram
+### g) Features with most connections: bmi
 
 ```{r}
-h <- rmcorr_diag("Dunedin")
+m1 <- corr |> dplyr::group_by(measure1) |> dplyr::count()  |> dplyr::ungroup() |> dplyr::filter(n == max(n))
+m2 <- corr |> dplyr::group_by(measure2) |> dplyr::count()  |> dplyr::ungroup() |> dplyr::filter(n == max(n))
+
+g <- rmcorr_diag("Body composition_bmi")
 ```
 
-### i) DamAge diagram
+### h) Sacchari
 
 ```{r}
-i <- rmcorr_diag("DamAge")
-```
-
-
-### j) AdaptAge
-
-```{r}
-j <- rmcorr_diag("AdaptAge")
-```
-
-### k) WID-buccal-BC
-
-```{r}
-k <- rmcorr_diag("buccal_BC")
-```
-
-### l) WID-BC
-
-```{r}
-l <- rmcorr_diag("index_BC")
-```
-
-### m) WID-EC
-
-```{r}
-m <- rmcorr_diag("index_EC")
+h <- rmcorr_diag("Saliva microbiome: families_Saccharimonadaceae")
 ```
 
 ```{r}
 design <- "
 ABC
 DEF
-GHI
-JKL
-MNN"
+GGH"
 
-plot <- (a+b+c+d+e+f+g+h+i+j+k+l+m + guide_area()) + plot_layout(design = design,guides = 'collect') +
+plot <- (a+b+c+d+e+f+g+h + guide_area()) + plot_layout(design = design,
+                                                       guides = 'collect') +
   plot_annotation(tag_levels = 'a')&
     theme(plot.tag = element_text(face = 'bold'))
 
-cairo_pdf(here("figures-pdf/e10.pdf"), width = 15,
-          height = 18)
+cairo_pdf(here("out/pdf/e-integration.pdf"), width = 20,
+          height = 15)
 plot
 dev.off()
 
@@ -840,7 +835,8 @@ dev.off()
 features = 'hematocrit|hemoglobin|ferritin|transferrin|transferrinsat|buccal_ic'
 cairo_pdf(here("out/pdf/e13.pdf"), width = 11, height = 9)
 multi_network_diagram(features = features,
-                      seed = 7)
+                      seed = 3,
+                      expand_r = 0.35)
 dev.off()
 
 ```

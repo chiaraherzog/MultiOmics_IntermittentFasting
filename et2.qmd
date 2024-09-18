@@ -13,10 +13,13 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 
 ```{r}
 library(here)
+library(dplyr)
+here::i_am('et2.qmd')
 load(here("out/wilcoxon-tests.Rdata"))
 source(here("src/renameVarsWilcoxon.R"))
 wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
 DT::datatable(wilcoxon_tests$overall |> 
-                dplyr::filter(!is.na(p_M6)) |> 
+                dplyr::filter(!is.na(p_M6) & !group %in% c("saliva microbiome asv", "stool microbiome asv",
+                                                          "stool microbiome family clr", "saliva microbiome family clr")) |> 
                 dplyr::arrange(p_M6))
 ```

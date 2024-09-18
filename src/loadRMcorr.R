@@ -69,7 +69,7 @@ loadRMcorr <- function(filter_ASV = F){
   
   # Filter p value
   corr <- corr |> 
-    dplyr::filter(p.vals < 0.01) |> 
+    # dplyr::filter(p.vals < 0.01) |> 
     dplyr::filter(!(grepl("metabolome", assay1) & !grepl("log", assay1)) & !(grepl("metabolome", assay2) & !grepl("log", assay2)))
   
   
@@ -80,7 +80,8 @@ loadRMcorr <- function(filter_ASV = F){
   
   corr <- corr |> 
     dplyr::filter(!is.na(p.vals)) |> 
-    dplyr::arrange(p.vals)
+    dplyr::arrange(p.vals) |> 
+    dplyr::mutate(padj = p.adjust(p.vals, method = 'fdr'))
   
   return(corr)
 }

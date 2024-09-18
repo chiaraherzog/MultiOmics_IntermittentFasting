@@ -32,6 +32,7 @@ Raw data are loaded.
 ```{r getdata, eval = F}
 load("data/data_normalized.Rdata")
 load("src/vars.Rdata")
+vars <- vars |> dplyr::filter(!grepl("families_clr|ASVs$|resonance:[ ]clr", assay) & !grepl("ImmAge_gen_adj", x))
 
 df <- longFormat(data[,data@colData$interventionId != 'S' & data@colData$visitId=='M0',], 
                  colDataCols = c('interventionId', 'visitId', 'subjectId', 'compliance',
@@ -85,6 +86,7 @@ names(assoc) <- colnames(df2)
 assoc_cor <- as.data.frame(t(as.data.frame(assoc))) |> 
    dplyr::filter(!is.na(V1) & V1 != 'NA') |> 
   tibble::rownames_to_column('x')
+length(unique(assoc_cor$x))
 
 save(assoc_cor, file = here('out/assoc_cor_bmi.Rdata'))
 ```
@@ -106,26 +108,37 @@ t |>
 load(here("src/vars.Rdata"))
 load(here('out/assoc_cor_bmi.Rdata'))
 
-vars <- vars |> 
+vars <- vars |>  
+    dplyr::filter(!grepl("ASVs$|families_clr", assay)) |> 
     dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label))
   
 assoc_clean <- assoc_cor |> 
   dplyr::filter(!grepl("ASV", x)) |> 
-  dplyr::rename(feature = x) |> 
   dplyr::mutate(padj = p.adjust(V1)) |> 
-  dplyr::mutate(feature = ifelse(grepl("smoking_py|cig_curr|mpstatrs|etoh_curr|age_at_consent|intactcurr|bmi_at_consent", feature), paste0("Basic characteristics_", feature), feature))  |> 
-  tidyr::separate(feature, "_", into = c("assay", "x"),
-                  extra = 'merge') |> 
-  dplyr::select(-padj) |> 
-  dplyr::mutate(assay = gsub("[.][.]", ": ", assay),
-                assay = gsub("[.]", " ", assay)) |>
-  dplyr::left_join(dplyr::select(vars, x, assay, assay2, label), by = c('x' = 'x',
-                                        'assay' = 'assay')) |>
+  dplyr::mutate(x = ifelse(grepl("smoking_py|cig_curr|mpstatrs|etoh_curr|age_at_consent|intactcurr|bmi_at_consent", x), paste0("Basic characteristics_", x), x)) |> 
+  tidyr::separate(x, into = c("assay", "x"), sep = "_", extra = 'merge') |> 
+  dplyr::mutate(assay = gsub("..", ": ", assay, fixed = T),
+                assay = gsub(".", " ", assay, fixed = T),
+                x = case_when(assay == 'Stool microbiome: families' & !x %in% c('UCG.010',
+                                                                               'Clostridia.UCG.014_unk1',
+                                                                               '.Eubacterium..coprostanoligenes.group') ~ gsub(".", " ", x, fixed = T),
+                              assay == 'Saliva microbiome: families' & x != 'Clostridia.UCG.014_unk1' ~ gsub(".", " ", x, fixed = T),
+                              x == 'UCG.010' ~ 'UCG-010',
+                              x == 'Clostridia.UCG.014_unk1' ~ 'Clostridia UCG-014_unk1',
+                              x == ".Eubacterium..coprostanoligenes.group" ~ '[Eubacterium] coprostanoligenes group',
+                              TRUE ~ x))  |> 
+  tidyr::unite("x", assay:x) |> 
+  dplyr::select(-padj)|> 
+  dplyr::left_join(dplyr::select(vars, x, assay, assay2, label),
+                   by = c('x' = 'x')) |>
           dplyr::mutate(variable = ifelse(!is.na(label), label, x),
                         assay = ifelse(!is.na(assay2), assay2, assay)) |>
           dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
   dplyr::relocate(assay, variable) |> 
-  dplyr::mutate(variable = case_when(variable == 'smoking_py' ~ 'Smoking pack years (at consent)',
+  dplyr::mutate(assay = ifelse(is.na(assay), "Basic characteristics",
+                               assay),
+                variable = gsub("Basic characteristics_", "", variable),
+                variable = case_when(variable == 'smoking_py' ~ 'Smoking pack years (at consent)',
                                      variable == 'bmi_at_consent' ~ "BMI at consent",
                                      variable == 'mpstatrs' ~ 'Menopause status (at consent)',
                                      variable == 'age_at_consent' ~ 'Age (at consent)',

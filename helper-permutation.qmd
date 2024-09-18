@@ -1,0 +1,85 @@
+---
+title: "Permutation testing"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+library(dplyr)
+library(lmerTest)
+library(lme4)
+library(here)
+library(broom)
+library(MultiAssayExperiment)
+
+here::i_am("helper-permutation.qmd")
+source("src/permutationTesting.R")
+```
+
+This script is to run permutation testing for linear mixed models. The output is saved under `out/permTest.Rdata` and loaded for final figures.
+
+# Load data
+
+Normalized data are loaded to run models and permutations. To avoid any duplicates for variables (e.g., methylation scores computed in two tissues and assays), assay and variable name are concatenated.
+
+```{r getdata, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs'))) |> 
+  dplyr::filter(!is.na(value))
+
+# Filter variables: (see t-tests.qmd for how this was generated:)
+load(here("src/vars.Rdata"))
+
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::inner_join(vars, by = c('rowname' = 'x',
+                                 'assay' = 'assay')) |> 
+  dplyr::select(-c(label, assay2)) |> 
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                visitId = factor(visitId, levels = c("M0", "M2", "M4", "M6")),
+                visitIdOrdered = ordered(visitId)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# check class
+class(df$visitId)
+class(df$visitIdOrdered)
+
+# remove full data
+rm(data);gc()
+
+data <- df
+variables = unique(data$rowname)
+```
+
+# Permutation testing
+
+The permutation test is then run on the data. The model can be specified. Here we use a basic interaction model.
+The scripts are run from terminal within `helper-permutation.R`.
+
+```{r}
+outPerm <- permutationTesting(data, variables, n = 100)
+```
+
+
+```{r save.as.script, eval = F}
+knitr::purl("helper-permutation.qmd",
+            output = 'helper-permutation.R')
+```
