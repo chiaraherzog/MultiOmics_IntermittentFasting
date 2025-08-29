@@ -35,6 +35,8 @@ FDRcorr <- function(df, append = T) {
     
     "Flow cytometry: T cell staining" = "immune",
     "Flow cytometry: white blood cell staining" = "immune",
+    "Flow cytometry: stimulated T cells" = "immune",
+    "Flow cytometry: unstimulated T cells" = "immune",
     "Immune age: general" = "immune",
     
     "Saliva microbiome: ASVs" = "saliva microbiome asv",

@@ -113,4 +113,3 @@ paired_change_compliance <- function(dat, variable = 'variable', nn = 4, p = 'p.
   
   return(p)
 }
-}

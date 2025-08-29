@@ -32,8 +32,8 @@ longitudinal <- function(dat,
       out <- do.call(rbind, lapply(complist, function(comp){                # loop over compliance list
         
         long_pval <- wilcoxon_tests[[comp]] |>  # grab relevant wilcoxon test result item
-          dplyr::filter(rowname == variable & assay %in% dat$assay) |>                             # filter variable
-          dplyr::select(rowname, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
+          dplyr::filter(x == variable & assay %in% dat$assay) |>                             # filter variable
+          dplyr::select(x, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
           tidyr::pivot_longer(any_of(ends_with("_adj"))) |>                 # pivot to long format
           dplyr::rowwise() |> 
           dplyr::mutate(visitId = gsub("p_|_adj", "", name),                 # reformat p vlaues for plotting
@@ -42,7 +42,7 @@ longitudinal <- function(dat,
                         p_value = paste0(signif(value), gsub("[.]", "", p_value_label)),
                         group1 = 'M0',
                         group2 = visitId) |> 
-          dplyr::select(rowname, visitId, p_value, p_value_label, group1, group2) |> 
+          dplyr::select(x, visitId, p_value, p_value_label, group1, group2) |> 
           dplyr::ungroup()
       }))
       
@@ -174,3 +174,4 @@ longitudinal <- function(dat,
   
   return(plot)
 }
+

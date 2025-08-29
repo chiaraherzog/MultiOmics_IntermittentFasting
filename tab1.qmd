@@ -131,7 +131,13 @@ c <- df |> ggplot(aes(x = complabel,
                       values = c(cols[c(1, 5, 4)], "grey60"),
                       name = '')
 
-(b|c|a) + plot_layout(guides = 'collect')
+plot <- (b|c|a) + plot_layout(guides = 'collect')
+
+cairo_pdf(here("out/pdf/e1b.pdf"),
+          width = 7,
+          height = 3.5)
+print(plot)
+dev.off()
 ```
 
 

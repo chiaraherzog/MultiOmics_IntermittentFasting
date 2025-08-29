@@ -1,5 +1,5 @@
 ---
-title: "Sensitivity analysis: time"
+title: "Sensitivity analysis: time (E13)"
 format:
   html:
     toc: true
@@ -8,9 +8,11 @@ format:
     code-tools: true
 ---
 
-# Extended Data Figure 11
+::: {.panel-tabset}
 
-![](figures-png/e12-model-sensitivity.png)
+# Extended Data Figure 13
+
+![](figures-png/e13-model-sensitivity.png)
 
 # Code
 
@@ -62,7 +64,6 @@ minimal_Ord <- factor$`Minimal model (ordered)` |>
 ord <- minimal_Ord |> 
   dplyr::filter(rowSums(across(c( p.value_visitIdOrdered.C_adj,  p.value_visitIdOrdered.L_adj,  p.value_visitIdOrdered.Q_adj), ~ . < 0.05)) > 0)
   
-
 minimal_Cont <- continuous$`Minimal model` |>
   dplyr::filter(!grepl("families:[ ]clr|ASVs$|resonance:[ ]clr", assay) & x != 'ImmAge_gen_adj') 
 
@@ -93,15 +94,15 @@ b <- est |> ggplot(aes(x = estimate_visitIdM6,
   labs(x = 'estimate (M6)<br>time as <b>factor</b>',
        y = 'estimate (L)<br>time as <b>ordinal</b>')
 
-c <- est |> ggplot(aes(x = p.value_visitIdM6,
-                  y = p.value_visitIdOrdered.L)) +
+c <- est |> ggplot(aes(x = -log10(p.value_visitIdM6+1),
+                  y = -log10(p.value_visitIdOrdered.L+1))) +
   geom_hex(bins = 70) +
   ggpubr::stat_cor(method = 'spearman') +
   theme_bw() +
   theme(axis.title = element_markdown()) +
   scale_fill_viridis(option = 'H',limits = c(0, 80)) +
-  labs(x = 'p value (M6)<br>time as <b>factor</b>',
-       y = 'p value (L)<br>time as <b>ordinal</b>')
+  labs(x = '-log10(p value+1) (M6)<br>time as <b>factor</b>',
+       y = '-log10(p value+1) (L)<br>time as <b>ordinal</b>')
 
 # correlation of estimates (cat-linear)
 est <- minimal_Cat |> dplyr::full_join(minimal_Cont, by = c("assay", "x"), suffix = c("cat", "ord"))
@@ -117,15 +118,15 @@ d <- est |> ggplot(aes(x = estimate_visitIdM6,
        y = 'estimate (time)<br>time as <b>continuous</b>')
 
 
-e <- est |> ggplot(aes(x = p.value_visitIdM6,
-                       y = p.value_time)) +
+e <- est |> ggplot(aes(x = -log10(p.value_visitIdM6+1),
+                       y = -log10(p.value_time+1))) +
   geom_hex(bins = 70) +
   ggpubr::stat_cor(method = 'spearman') +
   theme_bw() +
   theme(axis.title = element_markdown()) +
   scale_fill_viridis(option = 'H',limits = c(0, 80)) +
-  labs(x = 'p value (M6)<br>time as <b>factor</b>',
-       y = 'p value (time)<br>time as <b>continuous</b>')
+  labs(x = '-log10(p value+1) (M6)<br>time as <b>factor</b>',
+       y = '-log10(p value+1) (time)<br>time as <b>continuous</b>')
 
 
 ((a) | ((b/c)|(d/e))) + plot_layout(guides = 'collect')
@@ -179,15 +180,15 @@ g <- est |> ggplot(aes(x = `estimate_visitIdM6:compliancehigh`,
   labs(x = 'estimate (time X compliance)<br>time as <b>factor</b>',
        y = 'estimate (time X compliance)<br>time as <b>ordinal</b>')
 
-h <- est |> ggplot(aes(x = `p.value_visitIdM6:compliancehigh`,
-                  y = `p.value_visitIdOrdered.L:compliancehigh`)) +
+h <- est |> ggplot(aes(x = -log10(`p.value_visitIdM6:compliancehigh`+1),
+                  y = -log10(`p.value_visitIdOrdered.L:compliancehigh`+1))) +
   geom_hex(bins = 70) +
   ggpubr::stat_cor(method = 'spearman') +
   theme_bw() +
   theme(axis.title = element_markdown()) +
   scale_fill_viridis(option = 'H',limits = c(0, 80)) +
-  labs(x = 'p value (time X compliance)<br>time as <b>factor</b>',
-       y = 'p value (time X compliance)<br>time as <b>ordinal</b>')
+  labs(x = '-log10(p value+1) (time X compliance)<br>time as <b>factor</b>',
+       y = '-log10(p value+01 (time X compliance)<br>time as <b>ordinal</b>')
 
 # correlation of estimates (cat-linear)
 est <- minimal_Cat |> dplyr::full_join(minimal_Cont, by = c("assay", "x"), suffix = c("cat", "num"))
@@ -203,15 +204,15 @@ i <- est |> ggplot(aes(x = `estimate_visitIdM6:compliancehigh`,
        y = 'estimate (time X compliance)<br>time as <b>continuous</b>')
 
 
-j <- est |> ggplot(aes(x = `p.value_visitIdM6:compliancehigh`,
-                       y = `p.value_time:compliancehigh`)) +
+j <- est |> ggplot(aes(x = -log10(`p.value_visitIdM6:compliancehigh`+1),
+                       y = -log10(`p.value_time:compliancehigh`+1))) +
   geom_hex(bins = 70) +
   ggpubr::stat_cor(method = 'spearman') +
   theme_bw() +
   theme(axis.title = element_markdown()) +
   scale_fill_viridis(option = 'H',limits = c(0, 80)) +
-  labs(x = 'p value (time X compliance)<br>time as <b>factor</b>',
-       y = 'p value (time X compliance)<br>time as <b>continuous</b>')
+  labs(x = '-log10(p value+1) (time X compliance)<br>time as <b>factor</b>',
+       y = '-log10(p value+1) (time X compliance)<br>time as <b>continuous</b>')
 ```
 
 
@@ -225,5 +226,7 @@ plot <- (((a + plot_annotation(subtitle = 'Basic model'))/(f + plot_annotation(s
 plot
 
 
-ggsave(plot, file = "figures-png/e12-model-sensitivity.png", width = 12, height = 10, dpi = 600)
+ggsave(plot, file = "figures-png/e13-model-sensitivity.png", width = 12, height = 14, dpi = 600)
 ```
+
+::: {.panel-tabset}

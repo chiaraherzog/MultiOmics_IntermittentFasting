@@ -1,0 +1,27 @@
+---
+title: "ImmuneAge coefficients (ET13)"
+format:
+  html:
+    toc: true
+---
+
+Extended Data Table 13 provides ImmuneAge coefficients (see [ImmuneAge training](ImmuneAge_all.qmd).
+
+```{r}
+library(here)
+here::i_am('et13.qmd')
+load("out/ImmAge_gen_coef.Rdata")
+load("src/vars.Rdata")
+
+coef <- ImmAge_gen_coef |> dplyr::left_join(vars, by = c("name" = 'x')) |> 
+  dplyr::select(assay, label, s1, antibodies ) |> 
+  dplyr::rename(name = label,
+                weight = s1)
+
+writexl::write_xlsx(coef, path = here("out/Extended-Data-Table-13.xlsx"))
+```
+
+```{r}
+DT::datatable(coef)
+
+```

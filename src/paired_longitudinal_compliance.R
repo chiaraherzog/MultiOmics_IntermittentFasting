@@ -36,9 +36,9 @@ paired_longitudinal_compliance <- function(dat, variable = 'variable', nn = 4,
         
         long_pval <- wilcoxon_tests[[paste0(comp, ' compliance only')]] |>  # grab relevant wilcoxon test result item
           #dplyr::filter(rowname == variable) |>                             # filter variable
-          dplyr::filter(x == variable) %>% 
+          dplyr::filter(x == variable) |> 
           #dplyr::select(rowname, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
-          dplyr::select(x, ends_with("_adj")) %>%
+          dplyr::select(x, ends_with("_adj")) |> 
           tidyr::pivot_longer(any_of(ends_with("_adj"))) |>                 # pivot to long format
           dplyr::rowwise() |>
           dplyr::mutate(visitId = gsub("p_|_adj", "", name),                 # reformat p vlaues for plotting

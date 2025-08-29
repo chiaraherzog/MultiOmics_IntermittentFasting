@@ -19,35 +19,7 @@ here::i_am('et11.qmd')
 
 
 ```{r}
-load(here("out/assoc_cor_bmi.Rdata"))
-load(here("src/vars.Rdata"))
+assoc_clean <- readxl::read_xlsx(here("out/Extended-Data-Table-11.xlsx"))
 
-vars <- vars |> 
-    dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label))
-  
-assoc_clean <- assoc_cor |> 
-  dplyr::filter(!grepl("ASV", x)) |> 
-  dplyr::rename(feature = x) |> 
-  dplyr::mutate(padj = p.adjust(V1)) |> 
-  dplyr::mutate(feature = ifelse(grepl("smoking_py|cig_curr|mpstatrs|etoh_curr|age_at_consent|intactcurr|bmi_at_consent", feature), paste0("Basic characteristics_", feature), feature))  |> 
-  tidyr::separate(feature, "_", into = c("assay", "x"),
-                  extra = 'merge') |> 
-  dplyr::select(-padj) |> 
-  dplyr::mutate(assay = gsub("[.][.]", ": ", assay),
-                assay = gsub("[.]", " ", assay)) |>
-  dplyr::left_join(dplyr::select(vars, x, assay, assay2, label), by = c('x' = 'x',
-                                        'assay' = 'assay')) |>
-          dplyr::mutate(variable = ifelse(!is.na(label), label, x),
-                        assay = ifelse(!is.na(assay2), assay2, assay)) |>
-          dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
-  dplyr::relocate(assay, variable) |> 
-  dplyr::mutate(variable = case_when(variable == 'smoking_py' ~ 'Smoking pack years (at consent)',
-                                     variable == 'bmi_at_consent' ~ "BMI at consent",
-                                     variable == 'mpstatrs' ~ 'Menopause status (at consent)',
-                                     variable == 'age_at_consent' ~ 'Age (at consent)',
-                                     variable == 'cig_curr' ~ 'Cigarettes/d (at consent)',
-                                     variable == 'etoh_curr' ~ 'Alcohol use (y/n, at consent)',
-                                     variable == 'intactcurr' ~ 'Intense activity/week (at consent)',
-                                     TRUE ~ variable))
 DT::datatable(assoc_clean)
 ```

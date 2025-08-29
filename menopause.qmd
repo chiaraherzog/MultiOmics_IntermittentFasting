@@ -1,5 +1,5 @@
 ---
-title: "Effect of menopause (E10)"
+title: "Effect of menopause (E11)"
 format:
   html:
     toc: true
@@ -8,14 +8,13 @@ format:
     code-tools: true
 ---
 
-# Figures
-
 ::: {.panel-tabset}
+
+# Figures
 
 ## Extended data figure 11
 
-![](figures-png/e11_menopause.png)
-:::
+![](figures-png/e11.png)
 
 # Code
 
@@ -65,6 +64,7 @@ load("out/out_lmm_factor.Rdata")
 ```{r}
 exp_include <- c("Blood haemogram","Body composition",
                  "Flow cytometry: T cell staining","Flow cytometry: white blood cell staining",
+                 "Flow cytometry: stimulated T cells", "Flow cytometry: unstimulated T cells",
                  "Composite methylation scores: blood","Composite methylation scores: buccal","Composite methylation scores: cervical","Immune age: general",
                  "Saliva nuclear magnetic resonance: normalized","Urine nuclear magnetic resonance: normalized",
                  "Saliva microbiome: families_", "Stool microbiome: families_")
@@ -101,7 +101,7 @@ Some examples:
 load('data/data_raw.Rdata')
 source('src/filter_if.R')
 
-df <- longFormat(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
+df <- longForm(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
   as.data.frame() |> 
   filter_if()
 
@@ -168,11 +168,11 @@ hist(df2$`p.value_visitIdM6:mpstatrsyes`)
 df2 <- df2 |> 
   dplyr::filter(!grepl("ASV", x)) |> 
   dplyr::mutate(padj = p.adjust(`p.value_visitIdM6:mpstatrsyes`)) |> 
-  dplyr::filter(`p.value_visitIdM6:mpstatrsyes` < 0.05)
+  dplyr::filter(`p.value_visitIdM6:mpstatrsyes` < 0.1)
 
 load('data/data_baseline_change.Rdata')
 
-df <- longFormat(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
+df <- longForm(data, colDataCols = c('interventionId', 'subjectId', 'visitId', 'compliance', 'mpstatrs')) |> 
   as.data.frame() |> 
   filter_if()
 
@@ -248,18 +248,21 @@ plotMenopauseComp(df,
 ```{r ext_11d-g, eval = F}
 
 cairo_pdf("out/pdf/ext11d_menopause.pdf", width = 6, height = 2.8)
-p <- plotMenopauseComp(df,
-                  variable = 'X2.Hydroxyisobutyrate',
-                  nn = 4,
-                  title = '2-Hydroxyisobutyrate<br>(urine)', subsetAssay = "Urine nuclear magnetic resonance: normalized")
-print(p)
-dev.off()
-
-cairo_pdf("out/pdf/ext11e_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df, variable = 'ic', nn = 4, title = 'buccal ic',
                   subsetAssay = 'buccal')
 print(p)
 dev.off()
+
+
+cairo_pdf("out/pdf/ext11e_menopause.pdf", width = 6, height = 2.8)
+p <- plotMenopauseComp(df,
+                  variable = 'lymphocytes_single_cells_live_t_cells_cd4_t_cells_il17a',
+                  nn = 4,
+                  title = 'IL-17A producting Th cells<br>', subsetAssay = "Flow cytometry: stimulated T cells")
+print(p)
+dev.off()
+
+
 
 cairo_pdf("out/pdf/ext11f_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df, variable = 'Saccharimonadaceae', nn = 4, title = 'Saccharimonadaceae<br>(saliva)',
@@ -274,4 +277,6 @@ print(p)
 dev.off()
 
 ```
+
+:::
 

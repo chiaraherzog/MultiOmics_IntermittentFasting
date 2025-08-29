@@ -1,6 +1,7 @@
 *.ai
 *.pdf
 *.png
+!/figures-png/*
 
 *.Rdata
 *.xlsx
@@ -19,6 +20,7 @@ helper-rmcorr.R
 plot_lmm_heatmap_v4.R
 compute_feature_sample_n.R
 heatmap-agedev.R
+plotsForMartin.R
 
 _site/*
 /_site/

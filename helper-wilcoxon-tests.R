@@ -1,24 +1,105 @@
+## ----setup, include=F----------------------------------------------------------------------------------------------------------------------
+# knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+
+
+## ----libs, eval = T------------------------------------------------------------------------------------------------------------------------
 library(dplyr)
 library(broom)
 library(here)
 library(MultiAssayExperiment)
-here::i_am("helper-wilcoxon-tests.R")
 
+here::i_am("helper-wilcoxon-tests.qmd")
+source(here("src/wilcoxon_tests.R"))
+
+
+## ----eval = F------------------------------------------------------------------------------------------------------------------------------
+# load("data/data_raw.Rdata")
+# 
+# # Preparing a list of variables to be included
+# vars_clin <- read.table("src/clinical_variables.csv", header = T, sep = ',') |>
+#   dplyr::mutate(assay = case_when(grepl("Spiro|test|exercise", assay2) ~ "Functional sports exam",
+#                                   grepl("vifat|scfat", x) ~ "Vascular and body sonography",
+#                                   grepl("Vascular", assay2) ~ "Vascular and body sonography",
+#                                   grepl("composition", assay2) ~ "Body composition",
+#                                   grepl("Skin", assay2) ~ "Skin histology and transepidermal water loss assay",
+#                                   TRUE ~ assay2)) |>
+#   dplyr::filter(x != 'rhr')
+# 
+# vars_cerv_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 1) |>
+#   dplyr::mutate(assay = 'Composite methylation scores: cervical',
+#                 label = ifelse(x == 'ic', 'immune cell proportion', label))
+# 
+# vars_buccal_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 2) |>
+#   dplyr::mutate(assay = 'Composite methylation scores: buccal',
+#                 label = ifelse(x == 'ic', 'immune cell proportion', label))
+# 
+# vars_blood_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 3)|>
+#   dplyr::mutate(assay = 'Composite methylation scores: blood',
+#                 label = ifelse(x == 'ic', 'immune cell proportion', label))
+# 
+# load("src/populations_names_annotated.Rdata")
+# vars_imm <- populations |>
+#   dplyr::filter(main_analysis == 'yes' | grepl("stimulation", staining)) |>
+#   dplyr::mutate(x = name,
+#                 label = `population name`,
+#                 assay = ifelse(grepl("wb", staining), "Flow cytometry: white blood cell staining",
+#                                ifelse(grepl("stimulation", staining), "Flow cytometry: stimulated T cells",
+#                                "Flow cytometry: T cell staining")))
+# # Duplicate stimulation
+# stim <- vars_imm |> dplyr::filter(assay == 'Flow cytometry: stimulated T cells') |> dplyr::mutate(assay =
+#                                                                                                     'Flow cytometry: unstimulated T cells')
+# 
+# vars_imm <- rbind(vars_imm, stim)
+# 
+# vars_rest <- as.data.frame(rownames(data)) |>
+#   dplyr::filter(grepl("ImmAge_gen", value) | grepl("ASVs|families|normalized", group_name)) |>
+#   dplyr::rename(x = value,
+#                 assay = group_name) |>
+#   dplyr::mutate(assay2 = case_when(grepl("normalized", assay) & grepl("Urine", assay) ~ "Urine metabolome",
+#                                    grepl("normalized", assay) & grepl("Saliva", assay) ~ "Saliva metabolome"
+#                                    )) |>
+#   dplyr::select(-group)
+# 
+# saliva <- readRDS(here("out/RefMet_mapped_saliva.Rds")) |>
+#   dplyr::mutate(Input.name = ifelse(grepl("[0-9]", substr(Input.name, 0, 1)), paste0("X", Input.name), Input.name),
+#                 Input.name = ifelse(Input.name == 'Acetate.', "Acetate.mM.", Input.name),
+#                 Input.name = ifelse(Input.name == 'Trimethylamine N-oxide', 'TMA..N.oxide', Input.name))
+# 
+# urine <- readRDS(here("out/RefMet_mapped_urine.Rds")) |>
+#   dplyr::mutate(Input.name = ifelse(grepl("[0-9]", substr(Input.name, 0, 1)), paste0("X", Input.name), Input.name),
+#                 Input.name = ifelse(Input.name == 'Acetate.', "Acetate.mM.", Input.name),
+#                 Input.name = ifelse(Input.name == 'Trimethylamine N-oxide', 'TMA..N.oxide', Input.name))
+# metab <- rbind(saliva, urine) |> dplyr::distinct()
+# 
+# 
+# vars_rest <- vars_rest |>
+#   dplyr::left_join(dplyr::select(metab, Input.name, Standardized.name), by = c("x" = 'Input.name')) |>
+#   dplyr::mutate(label = ifelse(!is.na(Standardized.name), Standardized.name, x))
+# 
+# 
+# vars <- plyr::rbind.fill(vars_clin, vars_cerv_meth, vars_blood_meth, vars_buccal_meth, vars_imm, vars_rest)
+# save(vars, file = here("src/vars.Rdata"))
+
+
+## ----getdata, eval = F---------------------------------------------------------------------------------------------------------------------
 load("data/data_raw.Rdata")
 load(here("src/vars.Rdata"))
-vars <- vars |>
-  dplyr::filter(!grepl("ASVs$|families_clr", assay))
 
+vars_list <- vars |>
+  dplyr::filter(!grepl("ASVs$|families_clr", assay)) |>
+  dplyr::select(assay, x) |>
+  dplyr::group_by(assay) |>
+  dplyr::summarise(features = list(x), .groups = 'drop') |>
+  tibble::deframe()
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+df_filtered <- subsetByAssay(data, vars_list)
+df <- as.data.frame(longForm(df_filtered,
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
                                                  'bmi_at_consent',
                                                  'pattern',
-                                                 'mpstatrs'))) |> 
-  dplyr::filter(!is.na(value)) |> 
-  dplyr::inner_join(vars, by = c("rowname" = "x",
-                                 "assay" = "assay")) |> 
-  dplyr::select(-c(label, assay2)) |> 
+                                                 'mpstatrs'))) |>
+  dplyr::filter(!is.na(value)) |>
   dplyr::mutate(rowname = paste0(assay, "_", rowname))
 # all(df$rowname %in% vars$x)
 
@@ -26,21 +107,20 @@ df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "intervention
 df_raw <- df |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
   dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
-                mpstatrs = factor(mpstatrs, levels = c("no", "yes"))) 
+                mpstatrs = factor(mpstatrs, levels = c("no", "yes")))
 
 # remove full data
 rm(data);gc()
-
-# load in data
+# 
+# # load in data
 load("data/data_baseline_change.Rdata")
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
-                                                 'bmi_at_consent', 'pattern', 'mpstatrs'))) |> 
-  dplyr::filter(!is.na(value)) |> 
-  dplyr::inner_join(vars, by = c("rowname" = "x",
-                                 "assay" = "assay")) |> 
-  dplyr::select(-c(label, assay2)) |> 
+df_filtered <- subsetByAssay(data, vars_list)
+df <- as.data.frame(longForm(df_filtered,
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent', 'pattern', 'mpstatrs'))) |>
+  dplyr::filter(!is.na(value)) |>
   dplyr::mutate(rowname = paste0(assay, "_", rowname))
 
 # remove S and any non M0-M6
@@ -52,7 +132,35 @@ df_change <- df |>
 # remove full data
 rm(data, df);gc()
 
-source(here("src/wilcoxon_tests.R"))
-wilcoxon_tests <- wilcoxon_tests(df_change, df_raw)
 
+## ----eval = F------------------------------------------------------------------------------------------------------------------------------
+wilcoxon_tests <- wilcoxon_tests(df_change, df_raw)
 save(wilcoxon_tests, file = here("out/wilcoxon-tests.Rdata"))
+
+
+## ----eval = F------------------------------------------------------------------------------------------------------------------------------
+load(here("out/wilcoxon-tests.Rdata"))
+source(here('src/renameVarsWilcoxon.R'))
+wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
+
+
+## ----eval=F--------------------------------------------------------------------------------------------------------------------------------
+for (x in c("overall", "compliance comparison", "I versus K", "high compliance only")){
+  file = case_when(x == 'overall' ~ "2",
+                   x == 'compliance comparison' ~ '3',
+                   x == 'I versus K' ~ '4',
+                   x == 'high compliance only' ~ '5')
+
+  writexl::write_xlsx(as.data.frame(wilcoxon_tests[[x]] |>
+                                      dplyr::filter(!grepl("ImmAge_gen_adj", x))),
+                      path = paste0("out/Extended-Data-Table-",
+                                    file,
+                                    ".xlsx")
+    )
+}
+
+
+## ------------------------------------------------------------------------------------------------------------------------------------------
+# knitr::purl("helper-wilcoxon-tests.qmd",
+#             output = 'helper-wilcoxon-tests.R')
+

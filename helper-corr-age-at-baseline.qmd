@@ -31,7 +31,7 @@ Normalized data are loaded.
 load("data/data_normalized.Rdata")
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+df <- as.data.frame(longForm(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
                                                  'bmi_at_consent'))) |> 
   dplyr::filter(!is.na(value)) |> 
   dplyr::filter(visitId == "M0" & interventionId != "S") |> 

@@ -8,6 +8,8 @@ format:
     code-tools: true
 ---
 
+::: {.panel-tabset}
+
 # Figures
 
 ::: {.panel-tabset}
@@ -79,7 +81,7 @@ load("out/out_lmm_factor.Rdata")
 vars <- read.table("src/clinical_variables.csv", header = T, sep = ',') |> dplyr::pull(x)
 
 load("data/data_raw.Rdata")
-df_raw <- as.data.frame(longFormat(data[vars,,],
+df_raw <- as.data.frame(longForm(data[vars,,],
                                    colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'mpstatrs', 'pattern'))) |> 
   dplyr::filter(!is.na(value))
 
@@ -89,7 +91,7 @@ df_raw <- df_raw |>
 
 # Load data (change, raw)
 load("data/data_baseline_change.Rdata")
-df_change <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+df_change <- as.data.frame(longForm(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
 
 df_change <- df_change |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
@@ -98,7 +100,7 @@ df_change <- df_change |>
 
 # Load data (normalised)
 load("data/data_normalized.Rdata")
-df_scaled <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+df_scaled <- as.data.frame(longForm(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
 
 df_scaled <- df_scaled |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
@@ -108,7 +110,7 @@ df_scaled <- df_scaled |>
 
 # Load data (change, normalised)
 load("data/data_normalized_baseline.Rdata")
-df_change_scaled <- as.data.frame(longFormat(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
+df_change_scaled <- as.data.frame(longForm(data[vars,,], colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'pattern', 'mpstatrs')))
 
 df_change_scaled <- df_change_scaled |>
   dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
@@ -624,3 +626,4 @@ ggsave(plot,
        units = 'in')
 ```
 
+:::

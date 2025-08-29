@@ -19,7 +19,7 @@ plot_lmm_heatmap_frag <- function(exp,
                                            "#48a0af",
                                            "#f39668",
                                            "#ec6669"),
-                                  FDR = T){
+                                  fdr = T){
   
   if(!require("gtools")){
     install.packages("gtools")
@@ -98,7 +98,8 @@ plot_lmm_heatmap_frag <- function(exp,
   
   load("src/vars.Rdata")
   
-  tmp <- tmp |> dplyr::left_join(dplyr::select(vars, x, label, assay, assay2)) |> 
+  tmp <- tmp |>
+    dplyr::left_join(dplyr::select(vars, x, label, assay, assay2)) |> 
     dplyr::mutate(x = label,
                   
                   assay2 = case_when(assay2 %in% c('Blood test') | assay == 'Blood haemogram' ~ "Routine bloods",

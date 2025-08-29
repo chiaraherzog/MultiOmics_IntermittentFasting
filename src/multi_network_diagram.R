@@ -5,6 +5,7 @@
 #' @param legend should a lgend be printed?
 
 multi_network_diagram <- function(features,
+                                  corrObj,
                                   seed = 7,
                                   layout = layout.fruchterman.reingold,
                                   legend = T, expand = T,
@@ -18,34 +19,16 @@ multi_network_diagram <- function(features,
   library(igraph)
   
   # Filter features relevant to the diagram
-  inner <- corr |> 
+  inner <- corrObj |> 
     dplyr::filter(if_any(c('measure1', 'measure2'), ~ grepl(features, .)))
   
   if(expand == T){
-  features_exp <- paste0(unique(c(inner$measure1, inner$measure2)), collapse = "|")
-  inner <- corr |> 
-    dplyr::filter(if_any(c('measure1', 'measure2'), ~ grepl(features, .) | 
-                           (if_any(c('measure1', 'measure2'), ~ grepl(features_exp, .) & abs(rmcorr.r) >= expand_r))))
-  features <- features_exp
+    features_exp <- paste0(unique(c(inner$measure1, inner$measure2)), collapse = "|")
+    inner <- corrObj |> 
+      dplyr::filter(if_any(c('measure1', 'measure2'), ~ grepl(features, .) | 
+                             (if_any(c('measure1', 'measure2'), ~ grepl(features_exp, .) & abs(r) >= expand_r))))
+    features <- features_exp
   }
-  
-  # Get vars object to rename features
-  load(here("src/vars.Rdata"))
-  
-  inner <- inner |> 
-    tidyr::separate(measure1, "_", into = c(NA, 'measure1'), extra = 'merge') |> 
-    tidyr::separate(measure2, "_", into = c(NA, 'measure2'), extra = 'merge')
-  
-  inner$label1 = vars[match(inner$measure1, vars$x),]$label
-  inner$label2 = vars[match(inner$measure2, vars$x),]$label
-  
-  inner <- inner |> 
-    dplyr::mutate(label1 = case_when(is.na(label1) & grepl("microbiome", assay1) ~ measure1,
-                                     is.na(label1) & grepl("metabolome", assay1) ~ gsub("[.]", " ", gsub("^X", "", measure1)),
-                                     TRUE ~ label1),
-                  label2 = case_when(is.na(label2) & grepl("microbiome", assay2) ~ measure2,
-                                     is.na(label2) & grepl("metabolome", assay2) ~ gsub("[.]", " ", gsub("^X", "", measure2)),
-                                     TRUE ~ label2))
   
   features_upd <- unique(c(inner[grepl(features, inner$measure1),]$label1,
                            inner[grepl(features, inner$measure2),]$label2))
@@ -58,10 +41,10 @@ multi_network_diagram <- function(features,
   assays1 <- gsub("-log", "", assays1)
   cols <- grid.col[match(assays1, names(grid.col))]
   
-  col_edge <- ifelse(sign(inner$rmcorr.r) == -1, "lightblue", "coral3")
-  names(col_edge) <- ifelse(sign(inner$rmcorr.r) == -1, "negative", "positive")
-  rcorr <- scales::rescale(abs(inner$rmcorr.r), to = c(1, 8))
-  names(rcorr) <- abs(inner$rmcorr.r)
+  col_edge <- ifelse(sign(inner$r) == -1, "lightblue", "coral3")
+  names(col_edge) <- ifelse(sign(inner$r) == -1, "negative", "positive")
+  rcorr <- scales::rescale(abs(inner$r), to = c(1, 8))
+  names(rcorr) <- abs(inner$r)
   
   quantiles <- unname(quantile(rcorr, probs = c(0, 0.5, 0.8, 0.9, 1)))
   

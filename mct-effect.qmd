@@ -1,5 +1,5 @@
 ---
-title: "Figure 6: MCT effect analysis"
+title: "Figure 6: MCT effect analysis (F5)"
 format:
   html:
     toc: true
@@ -8,12 +8,13 @@ format:
     code-tools: true
 ---
 
+::: {.panel-tabset}
+
 # Figures
 
 ## Figure 6
 
 ![](figures-png/ketogenic.png)
-
 
 # Code
 
@@ -55,23 +56,34 @@ here::i_am("mct-effect.qmd")
 
 Here we initially create a barchart of features that are modulated by time, compliance, and then MCT.
 
-::: {.tabset .tabset-fade}
-
 ### FDR corrected (not used for this plot)
 
 ```{r fdr}
 load("out/out_lmm_factor.Rdata")
 source(here("src/FDRcorr.r"))
+load(here("src/vars.Rdata"))
+
+vars <- vars |> dplyr::filter(!assay %in% c("Stool microbiome: ASVs", "Saliva microbiome: ASVs",
+                                            "Saliva microbiome: families_clr", "Stool microbiome: families_clr")) |>
+  dplyr::filter(x != 'ImmAge_gen_adj') |> 
+  dplyr::select(assay, x) 
+
+vars1 <- vars |> 
+  dplyr::mutate(assay = case_when(assay == 'Stool microbiome: ASVs_clr' ~ 'Stool microbiome: ASVs: clr',
+                                  assay == 'Saliva microbiome: ASVs_clr' ~ 'Saliva microbiome: ASVs: clr',
+                                  TRUE ~ assay))
 
 time <- out_lmm$`Minimal model` |>
-  dplyr::filter(!grepl("clr", x)) |> 
   FDRcorr() |> 
   dplyr::select(assay, x, p.value_visitIdM2_adj, p.value_visitIdM4_adj, p.value_visitIdM6_adj, group) |> 
   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
   tidyr::pivot_longer(contains("p.value"),
                       names_to = 'visitId',
                       values_to = 'sig_time') |> 
-  dplyr::mutate(visitId = gsub("p.value_visitId|_adj", "", visitId))
+  dplyr::mutate(visitId = gsub("p.value_visitId|_adj", "", visitId)) |> 
+  dplyr::inner_join(vars1)
+
+
 
 
 # 
@@ -91,14 +103,14 @@ time <- out_lmm$`Minimal model` |>
 
 
 comp <- out_lmm$`Basic model with BMI` |>
-  dplyr::filter(!grepl("clr", x)) |> 
   FDRcorr() |> 
   dplyr::select(assay, x, `p.value_visitIdM2:compliancehigh_adj`, `p.value_visitIdM4:compliancehigh_adj`, `p.value_visitIdM6:compliancehigh_adj`, group) |> 
   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
   tidyr::pivot_longer(contains("p.value"),
                       names_to = 'visitId',
                       values_to = 'sig_comp') |> 
-  dplyr::mutate(visitId = gsub("p.value_visitId|:compliancehigh_adj", "", visitId))
+  dplyr::mutate(visitId = gsub("p.value_visitId|:compliancehigh_adj", "", visitId))|> 
+  dplyr::inner_join(vars1)
 
 # metab <- wilcoxon_tests$`compliance comparison`  |> dplyr::filter(grepl("magnetic resonance: normalized", assay)) |> 
 #   dplyr::select(assay, x, p_M2_adj, p_M4_adj, p_M6_adj) |> 
@@ -115,15 +127,14 @@ comp <- out_lmm$`Basic model with BMI` |>
 
 
 int <- out_lmm$`Intervention (higher compliance)` |> 
-  dplyr::filter(!grepl("clr", x)) |> 
   FDRcorr() |> 
   dplyr::select(assay, x, `p.value_visitIdM2:interventionIdK_adj`, `p.value_visitIdM4:interventionIdK_adj`, `p.value_visitIdM6:interventionIdK_adj`, group) |> 
-  dplyr::filter(!grepl("clr", assay)) |> 
   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
   tidyr::pivot_longer(contains("p.value"),
                       names_to = 'visitId',
                       values_to = 'sig_int') |> 
-  dplyr::mutate(visitId = gsub("p.value_visitId|:interventionIdK_adj", "", visitId))
+  dplyr::mutate(visitId = gsub("p.value_visitId|:interventionIdK_adj", "", visitId))|> 
+  dplyr::inner_join(vars1)
   
 # 
 # metab <- wilcoxon_tests$`I versus K` |> dplyr::filter(grepl("magnetic resonance: normalized", assay)) |> 
@@ -153,6 +164,9 @@ data_count <- data |>
   dplyr::ungroup()
 
 plot_data <- data_count |>
+  dplyr::mutate(group = case_when(group == 'stool microbiome asv clr' ~ 'stool microbiome asv',
+                                  group == 'saliva microbiome asv clr' ~ 'saliva microbiome asv',
+                                  TRUE ~ group)) |> 
   dplyr::group_by(visitId, group, sig) |> 
   dplyr::count() |> 
   dplyr::ungroup() |> 
@@ -164,14 +178,14 @@ plot_data <- data_count |>
                 group = factor(group, levels = rev(c("clinical (n=65)",
                                                  "cervical methylation (n=17)",
                                                  "buccal methylation (n=13)",
-                                                 "blood methylation (n=17)",
-                                                 "immune (n=55)",
+                                                 "blood methylation (n=18)",
+                                                 "immune (n=78)",
                                                  "saliva metabolome (n=49)", 
                                                  "urine metabolome (n=36)",
                                                  "saliva microbiome family (n=51)",
-                                                 "saliva microbiome asv (n=548)",
+                                                 "saliva microbiome asv (n=553)",
                                                  "stool microbiome family (n=76)",
-                                                 "stool microbiome asv (n=1316)"))),
+                                                 "stool microbiome asv (n=1344)"))),
                 )
   
 
@@ -198,11 +212,16 @@ plot_data |>
 ```{r perm}
 load("out/out_lmm_factor.Rdata")
 source(here("src/getPermutationComparisonPval.R"))
-load("out/outPermMinimal.Rdata")
 
+# Set up variables for filtering
+vars2 <- vars |> dplyr::mutate(x = paste0(assay, "_", x)) |> 
+  dplyr::select(x)
+
+# Time ------
+load("out/outPerm.Rdata")
 time <- out_lmm$`Minimal model` |> 
-  dplyr::filter(!grepl("ASVs_ASV|families_clr|:[ ]clr", x)) |> 
-  dplyr::select(x, p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6) 
+  dplyr::select(x, p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6)  |> 
+  dplyr::inner_join(vars2)
 
 time_perm <- getPermutationComparisonPval(observed = time, random = outPermMinimal,
                                           variables = time$x)
@@ -212,10 +231,11 @@ time_perm_sig <- time_perm |>
   tidyr::pivot_longer(contains("p.value"),
                       names_to = 'visitId',
                       values_to = 'sig_time') |> 
-  dplyr::mutate(visitId = gsub("p.value_visitId", "", visitId))
+  dplyr::mutate(visitId = gsub("p.value_visitId", "", visitId)) 
 
 load("out/wilcoxon-tests.Rdata")
-metab <- wilcoxon_tests$overall |> dplyr::filter(grepl("Saliva nuclear magnetic resonance: normalized", assay)) |>
+metab <- wilcoxon_tests$overall |>
+  dplyr::filter(grepl("Saliva nuclear magnetic resonance: normalized", assay)) |>
   dplyr::select(assay, x, p_M2_adj, p_M4_adj, p_M6_adj) |>
   tidyr::pivot_longer(p_M2_adj:p_M6_adj,
                       names_to = 'visitId',
@@ -228,11 +248,11 @@ metab <- wilcoxon_tests$overall |> dplyr::filter(grepl("Saliva nuclear magnetic 
 time_perm_sig <- time_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic resonance: normalized", x)) |>
   dplyr::bind_rows(metab)
 
-
+# Compliance ------
 load("out/outPerm.Rdata")
 comp <- out_lmm$`Basic model with BMI` |>
-  dplyr::filter(!grepl("ASVs_ASV|families_clr|:[ ]clr", x)) |> 
-  dplyr::select(x, `p.value_visitIdM2:compliancehigh`, `p.value_visitIdM4:compliancehigh`, `p.value_visitIdM6:compliancehigh`)
+  dplyr::select(x, `p.value_visitIdM2:compliancehigh`, `p.value_visitIdM4:compliancehigh`, `p.value_visitIdM6:compliancehigh`) |> 
+  dplyr::inner_join(vars2)
 
 comp_perm <- getPermutationComparisonPval(observed = comp, random = outPerm, variables = comp$x)
 comp_perm_sig <- comp_perm |> 
@@ -256,10 +276,13 @@ metab <- wilcoxon_tests$`compliance comparison` |> dplyr::filter(grepl("Saliva n
 comp_perm_sig <- comp_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic resonance: normalized", x)) |>
   dplyr::bind_rows(metab)
 
+
+# Intervention -------
 load("out/outPermIntervention.Rdata")
 int <- out_lmm$`Intervention (higher compliance)` |> 
-  dplyr::filter(!grepl("ASVs_ASV|families_clr|:[ ]clr", x)) |> 
-  dplyr::select(x, `p.value_visitIdM2:interventionIdK`, `p.value_visitIdM4:interventionIdK`, `p.value_visitIdM6:interventionIdK`)
+  dplyr::select(x, `p.value_visitIdM2:interventionIdK`, `p.value_visitIdM4:interventionIdK`, `p.value_visitIdM6:interventionIdK`) |> 
+  dplyr::inner_join(vars2)
+
 int_perm <- getPermutationComparisonPval(observed = int, random = outPermIntervent, variables = int$x)
 int_perm_sig <- int_perm |> 
   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
@@ -285,7 +308,10 @@ int_perm_sig <- int_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic re
 data <- time_perm_sig |>
   dplyr::full_join(comp_perm_sig, by = c("x", "visitId"))|>
   dplyr::full_join(int_perm_sig, by = c("x", "visitId")) |> 
-  tidyr::separate(x, "_", into = c("assay", "x"), extra = 'merge')
+  tidyr::separate(x, "_", into = c("assay", "x"), extra = 'merge') |> 
+  dplyr::mutate(assay = case_when(grepl("ASVs", assay) ~ paste0(assay, "_clr"),
+                                  TRUE ~ assay),
+                x = gsub("^_clr", "", x))
 
 
 # Define groups
@@ -304,22 +330,23 @@ data <- time_perm_sig |>
     
     "Flow cytometry: T cell staining" = "immune",
     "Flow cytometry: white blood cell staining" = "immune",
+    "Flow cytometry: stimulated T cells" = "immune",
+    "Flow cytometry: unstimulated T cells" = "immune",
     "Immune age: general" = "immune",
     
-    "Saliva microbiome: ASVs" = "saliva microbiome asv",
-    "Saliva microbiome: ASVs: clr" = "saliva microbiome asv clr",
+    # "Saliva microbiome: ASVs" = "saliva microbiome asv",
+    "Saliva microbiome: ASVs_clr" = "saliva microbiome asv",
     "Saliva microbiome: families" = "saliva microbiome family",
-    "Saliva microbiome: families: clr" = "saliva microbiome family clr",
     
-    "Stool microbiome: ASVs" = "stool microbiome asv",
-    "Stool microbiome: ASVs: clr" = "stool microbiome asv",
+    # "Stool microbiome: ASVs" = "stool microbiome asv",
+    "Stool microbiome: ASVs_clr" = "stool microbiome asv",
     "Stool microbiome: families" = "stool microbiome family",
-    "Stool microbiome: families: clr" = "stool microbiome family",
+    # "Stool microbiome: families: clr" = "stool microbiome family",
     
     "Saliva nuclear magnetic resonance: normalized" = "saliva metabolome",
-    "Urine nuclear magnetic resonance: normalized" = "urine metabolome",
-    "Saliva nuclear magnetic resonance: clr" = "urine metabolome clr",
-    "Urine nuclear magnetic resonance: clr" = "urine metabolome clr"
+    "Urine nuclear magnetic resonance: normalized" = "urine metabolome"
+    # "Saliva nuclear magnetic resonance: clr" = "urine metabolome clr",
+    # "Urine nuclear magnetic resonance: clr" = "urine metabolome clr"
   )
 
 data <- data |>
@@ -349,8 +376,8 @@ plot_data <- data_count |>
                 group = factor(group, levels = rev(c("clinical (n=65)",
                                                  "cervical methylation (n=17)",
                                                  "buccal methylation (n=13)",
-                                                 "blood methylation (n=17)",
-                                                 "immune (n=55)",
+                                                 "blood methylation (n=18)",
+                                                 "immune (n=78)",
                                                  "saliva metabolome (n=49)", 
                                                  "urine metabolome (n=36)",
                                                  "saliva microbiome family (n=51)",
@@ -402,7 +429,7 @@ sig_int <- int_perm |>
   dplyr::pull(met)
 
 # Create mSetObj
-mSet<-InitDataObjects("conc", "msetora", FALSE)
+mSet<-InitDataObjects("list", "msetora", FALSE, 150)
 
 #Set up mSetObj with the list of compounds
 mSet<-Setup.MapData(mSet, sig_int)
@@ -433,135 +460,194 @@ p <- as.data.frame(mSet_smpdb$analSet$ora.mat) |>
 ### not permuted (sanity check)
 
 ```{r sanity.check}
-# load("out/out_lmm_factor.Rdata")
-# time <- out_lmm$`Minimal model` |> 
-#   dplyr::filter(!grepl("ASVs_clr|families_clr|:[ ]clr", x)) |> 
-#   dplyr::select(x, p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6)
-# time_perm_sig <- time |> 
-#   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
-#   tidyr::pivot_longer(contains("p.value"),
-#                       names_to = 'visitId',
-#                       values_to = 'sig_time') |> 
-#   dplyr::mutate(visitId = gsub("p.value_visitId", "", visitId))
-# 
-# comp <- out_lmm$`Basic model with BMI` |>
-#   dplyr::filter(!grepl("ASVs_clr|families_clr|:[ ]clr", x)) |> 
-#   dplyr::select(x, `p.value_visitIdM2:compliancehigh`, `p.value_visitIdM4:compliancehigh`, `p.value_visitIdM6:compliancehigh`)
-# comp_perm_sig <- comp |> 
-#   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
-#   tidyr::pivot_longer(contains("p.value"),
-#                       names_to = 'visitId',
-#                       values_to = 'sig_comp') |> 
-#   dplyr::mutate(visitId = gsub("p.value_visitId|:compliancehigh", "", visitId))
-# 
-# int <- out_lmm$`Intervention (higher compliance)` |> 
-#   dplyr::filter(!grepl("ASVs_clr|families_clr|:[ ]clr", x)) |> 
-#   dplyr::select(x, `p.value_visitIdM2:interventionIdK`, `p.value_visitIdM4:interventionIdK`, `p.value_visitIdM6:interventionIdK`)
-# int_perm_sig <- int |> 
-#   dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
-#   tidyr::pivot_longer(contains("p.value"),
-#                       names_to = 'visitId',
-#                       values_to = 'sig_int') |> 
-#   dplyr::mutate(visitId = gsub("p.value_visitId|:interventionIdK", "", visitId))
-#   
-# 
-# data <- time_perm_sig |>
-#   dplyr::full_join(comp_perm_sig, by = c("x", "visitId"))|>
-#   dplyr::full_join(int_perm_sig, by = c("x", "visitId")) |> 
-#   tidyr::separate(x, "_", into = c("assay", "x"), extra = 'merge')
-# 
-# 
-# # Define groups
-#   # Define groups of assays for FDR correction
-#   # Step 1: Define the mapping of assays to overarching groups
-#   assay_to_group <- c(
-#     "Blood haemogram" = "clinical",
-#     "Body composition" = "clinical",
-#     "Functional sports exam" = "clinical",
-#     "Vascular and body sonography" = "clinical",
-#     "Skin histology and transepidermal water loss assay" = "clinical",
-#     
-#     "Composite methylation scores: blood" = "blood methylation",
-#     "Composite methylation scores: buccal" = "buccal methylation",
-#     "Composite methylation scores: cervical" = "cervical methylation",
-#     
-#     "Flow cytometry: T cell staining" = "immune",
-#     "Flow cytometry: white blood cell staining" = "immune",
-#     "Immune age: general" = "immune",
-#     
-#     "Saliva microbiome: ASVs" = "saliva microbiome asv",
-#     "Saliva microbiome: ASVs: clr" = "saliva microbiome asv clr",
-#     "Saliva microbiome: families" = "saliva microbiome family",
-#     "Saliva microbiome: families: clr" = "saliva microbiome family clr",
-#     
-#     "Stool microbiome: ASVs" = "stool microbiome asv",
-#     "Stool microbiome: ASVs: clr" = "stool microbiome asv clr",
-#     "Stool microbiome: families" = "stool microbiome family",
-#     "Stool microbiome: families: clr" = "stool microbiome family clr",
-#     
-#     "Saliva nuclear magnetic resonance: normalized" = "saliva metabolome",
-#     "Urine nuclear magnetic resonance: normalized" = "urine metabolome",
-#     "Saliva nuclear magnetic resonance: clr" = "urine metabolome clr",
-#     "Urine nuclear magnetic resonance: clr" = "urine metabolome clr"
-#   )
-# 
-# data <- data |>
-#   dplyr::mutate(group = assay_to_group[assay])
-#   
-# data_count <- data |> 
-#   rowwise() |> 
-#   dplyr::mutate(sig = case_when(sum(sig_comp, sig_int, sig_time) == 0 ~ "not significantly affected",
-#                                 sig_time == 1 & sum(sig_comp, sig_int) == 0 ~ "significant overall (time)",
-#                                 sig_comp == 1 & sig_int == 0 ~ "significantly modulated by higher compliance",
-#                                 (sig_time == 1 | sig_time == 0) & sig_comp == 0 & sig_int == 1 ~ "significantly modulated by ketogenic supplement",
-#                                 (sig_time == 1 | sig_time == 0) & sig_comp == 1 & sig_int == 1 ~ "significantly modulated by ketogenic supplement and compliance",
-#                                 TRUE ~ NA)) |> 
-#   dplyr::ungroup()
-# 
-# plot_data <- data_count |>
-#   dplyr::group_by(visitId, group, sig) |> 
-#   dplyr::count() |> 
-#   dplyr::ungroup() |> 
-#   dplyr::group_by(visitId, group) |> 
-#   dplyr::mutate(total = sum(n),
-#                 fraq = (n / total)*100) |> 
-#   dplyr::ungroup() |> 
-#   dplyr::mutate(group = paste0(group, " (n=", total, ")"),
-#                 group = factor(group, levels = rev(c("clinical (n=65)",
-#                                                  "cervical methylation (n=17)",
-#                                                  "buccal methylation (n=13)",
-#                                                  "blood methylation (n=17)",
-#                                                  "immune (n=55)",
-#                                                  "saliva metabolome (n=49)", 
-#                                                  "urine metabolome (n=36)",
-#                                                  "saliva microbiome family (n=51)",
-#                                                  "saliva microbiome asv (n=548)",
-#                                                  "stool microbiome family (n=76)",
-#                                                  "stool microbiome asv (n=1316)")))
-#                 )
-#   
-# 
-# b <- plot_data |> 
-#   ggplot(aes(x = fraq,
-#              y = group,
-#              fill = sig)) +
-#   geom_col() +
-#   facet_wrap(~visitId) +
-#   labs(x = 'proportion of total features (%)', y = '') +
-#   scale_fill_manual(values = c('grey90', cols[c(2, 1, 7, 6)]),
-#                     na.value = 'grey80',
-#                     name = 'permutation testing result') +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         panel.spacing = unit(0.75, "lines")) +
-#   coord_cartesian(expand = F)
-# 
-# # identical(a$data, b$data)
+load("out/out_lmm_factor.Rdata")
+
+# Set up variables for filtering
+vars2 <- vars |> dplyr::mutate(x = paste0(assay, "_", x)) |> 
+  dplyr::select(x)
+
+# Time ------
+load("out/outPerm.Rdata")
+time <- out_lmm$`Minimal model` |> 
+  dplyr::select(x, p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6)  |> 
+  dplyr::inner_join(vars2)
+
+time_perm_sig <- time |> 
+  dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
+  tidyr::pivot_longer(contains("p.value"),
+                      names_to = 'visitId',
+                      values_to = 'sig_time') |> 
+  dplyr::mutate(visitId = gsub("p.value_visitId", "", visitId)) 
+
+load("out/wilcoxon-tests.Rdata")
+metab <- wilcoxon_tests$overall |>
+  dplyr::filter(grepl("Saliva nuclear magnetic resonance: normalized", assay)) |>
+  dplyr::select(assay, x, p_M2_adj, p_M4_adj, p_M6_adj) |>
+  tidyr::pivot_longer(p_M2_adj:p_M6_adj,
+                      names_to = 'visitId',
+                      values_to = 'sig_time') |>
+  dplyr::mutate(x = paste0(assay, "_", x),
+                           visitId = gsub("p_|_adj", "", visitId),
+                sig_time = ifelse(sig_time < 0.05, 1, 0)) |> 
+  dplyr::select(-assay)
+
+time_perm_sig <- time_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic resonance: normalized", x)) |>
+  dplyr::bind_rows(metab)
+
+# Compliance ------
+load("out/outPerm.Rdata")
+comp <- out_lmm$`Basic model with BMI` |>
+  dplyr::select(x, `p.value_visitIdM2:compliancehigh`, `p.value_visitIdM4:compliancehigh`, `p.value_visitIdM6:compliancehigh`) |> 
+  dplyr::inner_join(vars2)
+
+comp_perm_sig <- comp |> 
+  dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
+  tidyr::pivot_longer(contains("p.value"),
+                      names_to = 'visitId',
+                      values_to = 'sig_comp') |> 
+  dplyr::mutate(visitId = gsub("p.value_visitId|:compliancehigh", "", visitId))
+
+load("out/wilcoxon-tests.Rdata")
+metab <- wilcoxon_tests$`compliance comparison` |> dplyr::filter(grepl("Saliva nuclear magnetic resonance: normalized", assay)) |>
+  dplyr::select(assay, x, p_M2_adj, p_M4_adj, p_M6_adj) |>
+  tidyr::pivot_longer(p_M2_adj:p_M6_adj,
+                      names_to = 'visitId',
+                      values_to = 'sig_comp') |>
+  dplyr::mutate(x = paste0(assay, "_", x),
+                           visitId = gsub("p_|_adj", "", visitId),
+                sig_comp = ifelse(sig_comp < 0.05, 1, 0)) |> 
+  dplyr::select(-assay)
+
+comp_perm_sig <- comp_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic resonance: normalized", x)) |>
+  dplyr::bind_rows(metab)
+
+
+# Intervention -------
+load("out/outPermIntervention.Rdata")
+int <- out_lmm$`Intervention (higher compliance)` |> 
+  dplyr::select(x, `p.value_visitIdM2:interventionIdK`, `p.value_visitIdM4:interventionIdK`, `p.value_visitIdM6:interventionIdK`) |> 
+  dplyr::inner_join(vars2)
+
+int_perm_sig <- int |> 
+  dplyr::mutate(across(contains("p.value"),  ~ ifelse(.<0.05, 1, 0))) |>
+  tidyr::pivot_longer(contains("p.value"),
+                      names_to = 'visitId',
+                      values_to = 'sig_int') |> 
+  dplyr::mutate(visitId = gsub("p.value_visitId|:interventionIdK", "", visitId))
+  
+load("out/wilcoxon-tests.Rdata")
+metab <- wilcoxon_tests$`I versus K` |> dplyr::filter(grepl("Saliva nuclear magnetic resonance: normalized", assay)) |>
+  dplyr::select(assay, x, p_M2_adj, p_M4_adj, p_M6_adj) |>
+  tidyr::pivot_longer(p_M2_adj:p_M6_adj,
+                      names_to = 'visitId',
+                      values_to = 'sig_int') |>
+  dplyr::mutate(x = paste0(assay, "_", x),
+                           visitId = gsub("p_|_adj", "", visitId),
+                sig_int = ifelse(sig_int < 0.05, 1, 0)) |> 
+  dplyr::select(-assay)
+
+int_perm_sig <- int_perm_sig |> dplyr::filter(!grepl("Saliva nuclear magnetic resonance: normalized", x)) |>
+  dplyr::bind_rows(metab)
+
+data <- time_perm_sig |>
+  dplyr::full_join(comp_perm_sig, by = c("x", "visitId"))|>
+  dplyr::full_join(int_perm_sig, by = c("x", "visitId")) |> 
+  tidyr::separate(x, "_", into = c("assay", "x"), extra = 'merge') |> 
+  dplyr::mutate(assay = case_when(grepl("ASVs", assay) ~ paste0(assay, "_clr"),
+                                  TRUE ~ assay),
+                x = gsub("^_clr", "", x))
+
+
+# Define groups
+  # Define groups of assays for FDR correction
+  # Step 1: Define the mapping of assays to overarching groups
+  assay_to_group <- c(
+    "Blood haemogram" = "clinical",
+    "Body composition" = "clinical",
+    "Functional sports exam" = "clinical",
+    "Vascular and body sonography" = "clinical",
+    "Skin histology and transepidermal water loss assay" = "clinical",
+    
+    "Composite methylation scores: blood" = "blood methylation",
+    "Composite methylation scores: buccal" = "buccal methylation",
+    "Composite methylation scores: cervical" = "cervical methylation",
+    
+    "Flow cytometry: T cell staining" = "immune",
+    "Flow cytometry: white blood cell staining" = "immune",
+    "Flow cytometry: stimulated T cells" = "immune",
+    "Flow cytometry: unstimulated T cells" = "immune",
+    "Immune age: general" = "immune",
+    
+    # "Saliva microbiome: ASVs" = "saliva microbiome asv",
+    "Saliva microbiome: ASVs_clr" = "saliva microbiome asv",
+    "Saliva microbiome: families" = "saliva microbiome family",
+    
+    # "Stool microbiome: ASVs" = "stool microbiome asv",
+    "Stool microbiome: ASVs_clr" = "stool microbiome asv",
+    "Stool microbiome: families" = "stool microbiome family",
+    # "Stool microbiome: families: clr" = "stool microbiome family",
+    
+    "Saliva nuclear magnetic resonance: normalized" = "saliva metabolome",
+    "Urine nuclear magnetic resonance: normalized" = "urine metabolome"
+    # "Saliva nuclear magnetic resonance: clr" = "urine metabolome clr",
+    # "Urine nuclear magnetic resonance: clr" = "urine metabolome clr"
+  )
+
+data <- data |>
+  dplyr::mutate(group = assay_to_group[assay])
+  
+data_count <- data |> 
+  rowwise() |> 
+  dplyr::mutate(sig = case_when(sum(sig_comp, sig_int, sig_time) == 0 ~ "not significantly affected",
+                                sig_time == 1 & sum(sig_comp, sig_int) == 0 ~ "significant overall (time)",
+                                sig_comp == 1 & sig_int == 0 ~ "significantly modulated by higher compliance",
+                                (sig_time == 1 | sig_time == 0) & sig_comp == 0 & sig_int == 1 ~ "significantly modulated by ketogenic supplement",
+                                (sig_time == 1 | sig_time == 0) & sig_comp == 1 & sig_int == 1 ~ "significantly modulated by ketogenic supplement and compliance",
+                                TRUE ~ NA)) |> 
+  dplyr::ungroup()
+
+x <- data_count |> dplyr::filter(is.na(sig))
+
+plot_data <- data_count |>
+  dplyr::group_by(visitId, group, sig) |> 
+  dplyr::count() |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(visitId, group) |> 
+  dplyr::mutate(total = sum(n),
+                fraq = (n / total)*100) |> 
+  dplyr::ungroup() |> 
+  dplyr::mutate(group = paste0(group, " (n=", total, ")"),
+                group = factor(group, levels = rev(c("clinical (n=65)",
+                                                 "cervical methylation (n=17)",
+                                                 "buccal methylation (n=13)",
+                                                 "blood methylation (n=18)",
+                                                 "immune (n=78)",
+                                                 "saliva metabolome (n=49)", 
+                                                 "urine metabolome (n=36)",
+                                                 "saliva microbiome family (n=51)",
+                                                 "saliva microbiome asv (n=553)",
+                                                 "stool microbiome family (n=76)",
+                                                 "stool microbiome asv (n=1344)")))
+                )
+  
+
+b <- plot_data |> 
+  ggplot(aes(x = fraq,
+             y = group,
+             fill = sig)) +
+  geom_col() +
+  facet_wrap(~visitId) +
+  labs(x = 'proportion of total features (%)', y = '') +
+  scale_fill_manual(values = c('grey90', cols[c(2, 1, 7, 6)]),
+                    na.value = 'grey80',
+                    name = 'permutation testing result') +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        panel.spacing = unit(0.75, "lines")) +
+  coord_cartesian(expand = F)
 ```
 
-:::
-
-<!-- Note: permuted and non-permuted-corrected significant p values are identical, indicating results are not by chance. -->
+<!-- Note: permuted and non-permuted-corrected significant p values areessentially identical, indicating results are not by chance. -->
 
 
 ## Heatmap of affected changes
@@ -573,7 +659,6 @@ p <- as.data.frame(mSet_smpdb$analSet$ora.mat) |>
 * FDR before sub-setting top features (minimal p-values, top 5)
 
 ```{r}
-
 load("out/out_lmm_factor.Rdata")
 
 source("src/plot_lmm_heatmap_IvK_v2.R")
@@ -671,8 +756,6 @@ dev.off()
 
 * all p-values Wilcoxon test FDR corrected
 
-::: {.tabset .tabset-fade}
-
 ### global island methylation
 
 ```{r}
@@ -680,7 +763,7 @@ source("src/comparison_plots.R")
 source("src/filter_if.R")
 
 path = here("data/data_baseline_change.Rdata")
-df_change_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: cervical"],
+df_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
    filter_if(age_norm = T, type_norm = T)
@@ -693,14 +776,13 @@ p1 <- comparison_plots(df_change_cerv, 'globalMethylation_island_adj', nn = 4, y
 ### 1-Methylhistidine
 
 ```{r}
-df <- as.data.frame(longFormat(get(load(path))["t.Methylhistidine",,],
+df <- as.data.frame(longForm(get(load(path))["Threonine",,],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
   dplyr::filter(assay == 'Urine nuclear magnetic resonance: normalized') |> 
    filter_if(age_norm = T, type_norm = T)
 
-p2 <- comparison_plots(df, 't.Methylhistidine', nn = 4, ylab = '<b>∆ 1-Methylhistidine</b><br>(urine metabolome)', fdr = T) +
-  coord_cartesian(ylim = c(-3.5,5.5))
+p2 <- comparison_plots(df, 'Threonine', nn = 4, ylab = '<b>∆ Threonine</b><br>(urine metabolome)', fdr = T)
 ```
 
 ### Selenomonadaceae; ASV_eqj_31u_d9k (saliva)
@@ -708,7 +790,7 @@ p2 <- comparison_plots(df, 't.Methylhistidine', nn = 4, ylab = '<b>∆ 1-Methylh
 * lmm estimates from CLR transformed data, here change in relative abundance shown
 
 ```{r}
-df <- as.data.frame(longFormat(get(load(path))["ASV_eqj_31u_d9k",,],
+df <- as.data.frame(longForm(get(load(path))["ASV_eqj_31u_d9k",,],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
   dplyr::filter(!grepl("clr", assay) & grepl("Saliva microbiome", assay)) |> 
@@ -722,7 +804,7 @@ p3 <- comparison_plots(df, 'ASV_eqj_31u_d9k', nn = 4, ylab = '<b>∆ Selenomonad
 ### Veillonellaceae (saliva)
 
 ```{r}
-df <- as.data.frame(longFormat(get(load(path))["Veillonellaceae",,],
+df <- as.data.frame(longForm(get(load(path))["Veillonellaceae",,],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
   dplyr::filter(!grepl("clr", assay) & grepl("Saliva microbiome", assay)) |> 
@@ -738,7 +820,7 @@ p4 <- comparison_plots(df, 'Veillonellaceae', nn = 4, ylab = '<b>∆ Veillonella
 * lmm estimates from CLR transformed data, here change in relative abundance shown
 
 ```{r}
-df <- as.data.frame(longFormat(get(load(path))["ASV_3v4_bkj",,],
+df <- as.data.frame(longForm(get(load(path))["ASV_3v4_bkj",,],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
   dplyr::filter(!grepl("clr", assay) & grepl("Stool microbiome", assay)) |> 
@@ -752,7 +834,7 @@ p5 <- comparison_plots(df, 'ASV_3v4_bkj', nn = 4, ylab = '<b>∆ Rikenellaceae;<
 ### UCG-10 (stool)
 
 ```{r}
-df <- as.data.frame(longFormat(get(load(path))["UCG-010",,],
+df <- as.data.frame(longForm(get(load(path))["UCG-010",,],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "pattern"))) |> 
   dplyr::filter(!grepl("clr", assay)) |> 

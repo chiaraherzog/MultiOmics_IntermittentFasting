@@ -39,7 +39,8 @@ vars_clin <- read.table("src/clinical_variables.csv", header = T, sep = ',') |>
                                   grepl("Vascular", assay2) ~ "Vascular and body sonography",
                                   grepl("composition", assay2) ~ "Body composition",
                                   grepl("Skin", assay2) ~ "Skin histology and transepidermal water loss assay",
-                                  TRUE ~ assay2))
+                                  TRUE ~ assay2)) |> 
+  dplyr::filter(x != 'rhr')
 
 vars_cerv_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 1) |> 
   dplyr::mutate(assay = 'Composite methylation scores: cervical',
@@ -55,10 +56,17 @@ vars_blood_meth <- readxl::read_xlsx("src/indices.xlsx", sheet = 3)|>
 
 load("src/populations_names_annotated.Rdata")
 vars_imm <- populations |> 
-  dplyr::filter(main_analysis == 'yes') |> 
+  dplyr::filter(main_analysis == 'yes' | grepl("stimulation", staining)) |> 
   dplyr::mutate(x = name,
                 label = `population name`,
-                assay = ifelse(grepl("wb", staining), "Flow cytometry: white blood cell staining", "Flow cytometry: T cell staining"))
+                assay = ifelse(grepl("wb", staining), "Flow cytometry: white blood cell staining",
+                               ifelse(grepl("stimulation", staining), "Flow cytometry: stimulated T cells",
+                               "Flow cytometry: T cell staining")))
+# Duplicate stimulation
+stim <- vars_imm |> dplyr::filter(assay == 'Flow cytometry: stimulated T cells') |> dplyr::mutate(assay = 
+                                                                                                    'Flow cytometry: unstimulated T cells')
+
+vars_imm <- rbind(vars_imm, stim)
 
 vars_rest <- as.data.frame(rownames(data)) |> 
   dplyr::filter(grepl("ImmAge_gen", value) | grepl("ASVs|families|normalized", group_name)) |> 
@@ -96,15 +104,21 @@ save(vars, file = here("src/vars.Rdata"))
 load("data/data_raw.Rdata")
 load(here("src/vars.Rdata"))
 
+vars_list <- vars |> 
+  dplyr::filter(!grepl("ASVs$|families_clr", assay)) |> 
+  dplyr::select(assay, x) |> 
+  dplyr::group_by(assay) |> 
+  dplyr::summarise(features = list(x), .groups = 'drop') |> 
+  tibble::deframe()
+
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+df_filtered <- subsetByAssay(data, vars_list)
+df <- as.data.frame(longForm(df_filtered,
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
                                                  'bmi_at_consent',
                                                  'pattern',
                                                  'mpstatrs'))) |> 
   dplyr::filter(!is.na(value)) |> 
-  dplyr::inner_join(vars, by = c("rowname" = "x",
-                                 "assay" = "assay")) |> 
-  dplyr::select(-c(label, assay2)) |> 
   dplyr::mutate(rowname = paste0(assay, "_", rowname))
 # all(df$rowname %in% vars$x)
 
@@ -121,12 +135,11 @@ rm(data);gc()
 load("data/data_baseline_change.Rdata")
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
+df_filtered <- subsetByAssay(data, vars_list)
+df <- as.data.frame(longForm(df_filtered, 
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time", 'compliance', 'comprate', 'supplement',
                                                  'bmi_at_consent', 'pattern', 'mpstatrs'))) |> 
   dplyr::filter(!is.na(value)) |> 
-  dplyr::inner_join(vars, by = c("rowname" = "x",
-                                 "assay" = "assay")) |> 
-  dplyr::select(-c(label, assay2)) |> 
   dplyr::mutate(rowname = paste0(assay, "_", rowname))
 
 # remove S and any non M0-M6
@@ -177,3 +190,8 @@ for (x in c("overall", "compliance comparison", "I versus K", "high compliance o
 ```
 
 Wilcoxon test results can be seen in Extended Data Tables [ET2](et2.qmd), [ET3](et3.qmd), [ET4](et4.qmd) and [ET5](et5.qmd) and on the data portal.
+
+```{r}
+knitr::purl("helper-wilcoxon-tests.qmd",
+            output = 'helper-wilcoxon-tests.R')
+```

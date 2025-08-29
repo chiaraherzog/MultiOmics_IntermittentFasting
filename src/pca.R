@@ -25,14 +25,18 @@ pca <- function(data, experiment, features,
                                    colData = features))
   
   # Wide format appends assay - we want to remove this:
-  if(length(experiment) == 1){
-    experiment_rowname <- paste0(gsub(":", ".", gsub(" ", ".", experiment)), "_")
-    colnames(wide) <- gsub(experiment_rowname, "", colnames(wide))
-  } else {
-    for (i in experiment){
-      experiment_rowname <- paste0(gsub(":", ".", gsub(" ", ".", i)), "_")
+  if(!any(grepl("stimul", experiment))){
+    if(length(experiment) == 1){
+      experiment_rowname <- paste0(gsub(":", ".", gsub(" ", ".", experiment)), "_")
       colnames(wide) <- gsub(experiment_rowname, "", colnames(wide))
+    } else {
+      for (i in experiment){
+        experiment_rowname <- paste0(gsub(":", ".", gsub(" ", ".", i)), "_")
+        colnames(wide) <- gsub(experiment_rowname, "", colnames(wide))
+      }
     }
+  } else {
+    
   }
   
   

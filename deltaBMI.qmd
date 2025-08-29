@@ -23,7 +23,16 @@ Here we explore the impact of ∆ BMI on outcomes. Basic models are run includin
 
 ```{r eval = T}
 load(here("out/out_lmm_factor.Rdata"))
-x <- out_lmm$`Basic model with BMI and BMI change`
+load("src/vars.Rdata")
+vars1 <- vars |> dplyr::filter(!assay %in% c("Stool microbiome: ASVs",
+                                             "Saliva microbiome: ASVs",
+                                             "Stool microbiome: families_clr",
+                                             "Saliva microbiome: families_clr")) |> 
+  dplyr::filter(x != 'ImmAge_gen_adj') |> 
+  dplyr::mutate(new = paste0(assay, "_", x))
+
+x <- out_lmm$`Basic model with BMI and BMI change` |> 
+  dplyr::filter(x %in% vars1$new)
 sig_bmi_delta <- x[x$p.value_dbmi < 0.05,]
 
 source(here("src/FDRcorr.R"))

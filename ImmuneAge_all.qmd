@@ -9,10 +9,10 @@ format:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
 ```
 
-```{r libs, eval = T}
+```{r libs, eval = F}
 library(dplyr)
 library(glmnet)
 library(ggplot2)
@@ -21,11 +21,11 @@ library(patchwork)
 library(MultiAssayExperiment)
 ```
 
-```{r colors, eval = T}
+```{r colors, eval = F}
 cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
 ```
 
-```{r functions, eval = T}
+```{r functions, eval = F}
 here::i_am("immuneAge_all.qmd")
 source(here("src/agePredictor.R"))
 source(here("src/trainImmAge_all.R"))
@@ -46,19 +46,19 @@ Training and evaluating an 'ImmuneAge' predictor.
 
 ## Train
 
-```{r, eval = T}
+```{r, eval = F}
 load(here("data/data_raw.Rdata"))
 exp <- c("Flow cytometry: T cell staining")
 
 out <- trainImmAge_all(data, exp, populations, mainOnly = F)
 ```
 
-```{r fig.width = 10, fig.height = 3.5}
+```{r fig.width = 10, fig.height = 3.5, eval = F}
 out$plots$corr_age
 out$plots$corr_age_intervent
 ```
 
-The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
+
 
 ```{r t.all.coefs}
 out$coef
@@ -105,8 +105,6 @@ out$plots$corr_age
 out$plots$corr_age_intervent
 ```
 
-The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
-
 ```{r}
 out$coef
 ```
@@ -151,7 +149,6 @@ out$plots$corr_age
 out$plots$corr_age_intervent
 ```
 
-The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
 
 ```{r}
 out$coef
@@ -196,15 +193,11 @@ out <- trainImmAge_all(data, exp, populations,
 
 
 
-
-
-
 ```{r fig.width = 10, fig.height = 3.5}
 out$plots$corr_age
 out$plots$corr_age_intervent
 ```
 
-The correlation of the predictor with age is `r as.numeric(round(cor(out$data[out$data$visitId=='M0',]$age_at_consent, out$data[out$data$visitId=='M0',]$ImmAge), 2))`. 
 
 ```{r}
 out$coef

@@ -10,7 +10,9 @@ col_visitId <- c("M0" = cols[2], "M2" = cols[1], "M4" = cols[4], "M6" = cols[5])
 
 # PCA-like plot, first two factors, color by time #----
 
-mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL) {
+mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL,
+                               factor1 = 'Factor1',
+                               factor2 = 'Factor2') {
   
   library(tidyverse)
   library(rcartocolor)
@@ -29,26 +31,26 @@ mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL) {
   
   if (time_type == "factor") {
     tmp = df2 %>%
-      dplyr::filter(factor %in% c("Factor1","Factor2")) %>%
+      dplyr::filter(factor %in% c(factor1, factor2)) %>%
       dplyr::select(sample,factor,value.factor,color_by, group) %>%
       dplyr::rename(time=color_by) %>%
       tidyr::pivot_wider(names_from = factor, values_from = value.factor)
     
     xl = df1 %>%
-      dplyr::filter(factor == "Factor1") %>%
+      dplyr::filter(factor == factor1) %>%
       pull(value) %>%
       mean() %>%
       round(digits = 1)
     yl = df1 %>%
-      dplyr::filter(factor == "Factor2") %>%
+      dplyr::filter(factor == factor2) %>%
       pull(value) %>%
       mean() %>%
       round(digits = 1)
     
     if (length(unique(tmp$group)) == 1) {
       plot = tmp %>%
-        ggplot(aes(x = Factor1, 
-                   y = Factor2, 
+        ggplot(aes(x = .data[[factor1]], 
+                   y = .data[[factor2]], 
                    fill = time, 
                    color = time)) +
         geom_point(shape = 21, alpha = 0.5) + 
@@ -56,13 +58,13 @@ mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL) {
         stat_ellipse(type="norm", show.legend = FALSE) +
         scale_fill_manual(values = col_visitId) +
         scale_color_manual(values = col_visitId, guide = "none") +
-        xlab(paste0("Factor 1\n(",xl,"% mean variance explained)")) +
-        ylab(paste0("Factor 2\n(",yl,"% mean variance explained)")) +
+        xlab(paste0(factor1, "\n(",xl,"% mean variance explained)")) +
+        ylab(paste0(factor2, "\n(",yl,"% mean variance explained)")) +
         labs(fill="")
     } else {
       plot = tmp %>%
-        ggplot(aes(x = Factor1, 
-                   y = Factor2, 
+        ggplot(aes(x = .data[[factor1]], 
+                   y = .data[[factor2]], 
                    fill = time, 
                    color = time)) +
         geom_point(shape = 21, alpha = 0.5) + 
@@ -70,8 +72,8 @@ mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL) {
         stat_ellipse(type="norm", show.legend = FALSE) +
         scale_fill_manual(values = col_visitId) +
         scale_color_manual(values = col_visitId, guide = "none") +
-        xlab(paste0("Factor 1\n(",xl,"% mean variance explained)")) +
-        ylab(paste0("Factor 2\n(",yl,"% mean variance explained)")) +
+        xlab(paste0(factor1, "\n(",xl,"% mean variance explained)")) +
+        ylab(paste0(factor2, "\n(",yl,"% mean variance explained)")) +
         labs(fill="") +
         facet_wrap(~group) +
         theme(strip.background = element_blank(),  # Remove strip background
@@ -81,33 +83,33 @@ mefisto_biplot_F12 <- function(df1, df2, time_type, time_unit = NULL) {
   } else if (time_type == "continuous"){
     
     tmp = df2 %>%
-      dplyr::filter(factor %in% c("Factor1","Factor2")) %>%
+      dplyr::filter(factor %in% c(factor1, factor2)) %>%
       dplyr::select(sample,factor,value.factor,value.covariate) %>%
       dplyr::rename(time=value.covariate) %>%
       tidyr::pivot_wider(names_from = factor, values_from = value.factor)
     
     xl = df1 %>%
-      dplyr::filter(factor == "Factor1") %>%
+      dplyr::filter(factor == factor1) %>%
       pull(value) %>%
       mean() %>%
       round(digits = 1)
     yl = df1 %>%
-      dplyr::filter(factor == "Factor2") %>%
+      dplyr::filter(factor == factor2) %>%
       pull(value) %>%
       mean() %>%
       round(digits = 1)
     
     
     plot = tmp %>%
-      ggplot(aes(x = Factor1, 
-                 y = Factor2, 
+      ggplot(aes(x = .data[[factor1]], 
+                 y = .data[[factor2]], 
                  fill = time, 
                  color = time)) +
       geom_point(color = "black", shape = 21) + 
       theme_minimal() +
       scale_fill_carto_c(palette = "Earth") +
-      xlab(paste0("Factor 1\n",xl,"% mean variance explained")) +
-      ylab(paste0("Factor 2\n",yl,"% mean variance explained")) +
+      xlab(paste0(factor1, "\n",xl,"% mean variance explained")) +
+      ylab(paste0(factor2, "\n",yl,"% mean variance explained")) +
       labs(fill=paste0("time (",time_unit,")"))
   }
   

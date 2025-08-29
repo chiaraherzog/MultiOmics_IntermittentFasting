@@ -39,7 +39,7 @@ load("data/data_normalized.Rdata")
 data <- data[,data$visitId=='M0' & data$interventionId != 'S',]
 
 # long format with basic annotation
-df <- as.data.frame(longFormat(data,
+df <- as.data.frame(longForm(data,
                                colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
                                                  'compliance', 'supplement',
                                                  'bmi_at_consent',
@@ -51,6 +51,11 @@ df <- as.data.frame(longFormat(data,
 
 # Filter variables: (see wilcoxon-tests.qmd for how this was generated:)
 load(here("src/vars.Rdata"))
+vars <- vars|> dplyr::filter(!assay %in% c("Stool microbiome: ASVs",
+                                             "Saliva microbiome: ASVs",
+                                             "Stool microbiome: families_clr",
+                                             "Saliva microbiome: families_clr")) |> 
+  dplyr::filter(x != 'ImmAge_gen_adj') 
 
 # remove S and any non M0-M6
 df <- df |>
@@ -143,10 +148,7 @@ hist(results_logistic_with_bmi$p.value_bmi_at_consent)
 hist(results_logistic_basic$p.value_value) # histogram looks very bad.
 
 x <- results_logistic_basic[results_logistic_basic$p.value_value<0.05,] # none look particularly good.
-
-
 source(here("src/FDRcorr.R"))
-
 results_logistic_basic <- FDRcorr(results_logistic_basic) # none remain significant
 ```
 

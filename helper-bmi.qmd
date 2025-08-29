@@ -1,5 +1,5 @@
 ---
-title: "Baseline association with BMI change"
+title: "baseline features ~ follow-up BMI change (E12)"
 format:
   html:
     toc: true
@@ -17,6 +17,9 @@ knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
 library(dplyr)
 library(ggplot2)
 library(here)
+library(parallel)
+library(broom.mixed)
+library(R.utils)
 library(MultiAssayExperiment)
 here::i_am("helper-bmi.qmd")
 ```
@@ -29,123 +32,122 @@ This script is to explore the association of baseline characteristics and BMI ch
 
 Raw data are loaded.
 
-```{r getdata, eval = F}
+```{r run, eval = F}
+# Which baseline features predict dbmi?
 load("data/data_normalized.Rdata")
 load("src/vars.Rdata")
-vars <- vars |> dplyr::filter(!grepl("families_clr|ASVs$|resonance:[ ]clr", assay) & !grepl("ImmAge_gen_adj", x))
+vars1 <- vars |> dplyr::filter(!assay %in% c("Stool microbiome: ASVs",
+                                             "Saliva microbiome: ASVs",
+                                             "Stool microbiome: families_clr",
+                                             "Saliva microbiome: families_clr")) |> 
+  dplyr::filter(!x %in% c('ImmAge_gen_adj', 'weight', 'fm')) |> 
+  dplyr::group_by(assay) |> 
+  dplyr::summarise(feature = list(x), .groups = 'drop') |> 
+  tibble::deframe()
 
-df <- longFormat(data[,data@colData$interventionId != 'S' & data@colData$visitId=='M0',], 
-                 colDataCols = c('interventionId', 'visitId', 'subjectId', 'compliance',
-                                 'dropout_date', 'mpstatrs',
-                                 'bmi_at_consent',
-                                 'etoh_curr', 'etohu_curr',
-                                 'age_at_consent', 'intactcurr')) |> 
-  as.data.frame() |> 
-  dplyr::inner_join(dplyr::select(vars, x, assay), by = c("rowname" = "x",
-                                                          "assay" = "assay")) |> 
-  dplyr::mutate(mpstatrs = gsub("[*]", "", mpstatrs),
-                x = paste0(assay, "_", rowname)) |> 
-  tidyr::pivot_wider(names_from = x,
-                     values_from = value,
-                     id_cols = c(interventionId, visitId, subjectId, compliance, dropout_date, mpstatrs, etoh_curr, age_at_consent, intactcurr))
+# extract all data in long format plus basic anno
+df <- as.data.frame(longForm(subsetByAssay(data, vars1),
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs'))) |> 
+  dplyr::filter(!is.na(value) & visitId == 'M0') |> 
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                visitId = factor(visitId, levels = c("M0", "M2", "M4", "M6")),
+                visitIdOrdered = ordered(visitId)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
 
-load("data/data_baseline_change.Rdata")
+# check class
+class(df$visitId)
+class(df$visitIdOrdered)
 
-outcome <- wideFormat(data['bmi',data@colData$interventionId != 'S' & data@colData$visitId=='M6',],
-                       colDataCols = 'subjectId') |> 
-  as.data.frame() |> 
-  dplyr::rename(change = Body.composition_bmi) |> 
-  dplyr::select(subjectId, change)
+# remove full data
+rm(data);gc()
 
-features <- df |> 
-  dplyr::select(-c(compliance, subjectId, interventionId, visitId, dropout_date))
+data  <- df
+variables = unique(data$rowname)
+cores = 3
 
-# prediction of WID_smk change
-ids_complete <- outcome$subjectId
-df2 <- features[match(ids_complete, df$subjectId),]
 
-pb <- txtProgressBar(min = 0, max = ncol(features), style = 3,
-                      width = 50)
- 
-assoc <- lapply(1:ncol(df2), function(j){
-   
-   setTxtProgressBar(pb, j)
-   
-   a <- df2[,j][!is.na(df2[,j])]
-   b <- outcome$change[!is.na(df2[,j])]
-   
- tryCatch(if(is.numeric(a)){
-     cor.test(b, a, method = 'spearman')$p.value
-   } else {
-     kruskal.test(b, a)$p.value
-   }, error = function(e){"NA"})
- })
+out <- mclapply(variables,  function(i) {
+  tryCatch(lm(dbmi ~ bmi_at_consent + age_at_consent + interventionId + value + comprate,
+              data = data[data$rowname==i,]),
+           error = function(e) return(e))
+}, mc.cores = cores, mc.preschedule = T, mc.cleanup = T)
+names(out) <- variables
 
-names(assoc) <- colnames(df2)
- 
-assoc_cor <- as.data.frame(t(as.data.frame(assoc))) |> 
-   dplyr::filter(!is.na(V1) & V1 != 'NA') |> 
-  tibble::rownames_to_column('x')
-length(unique(assoc_cor$x))
+## Remove any with error
+out <- out |>
+  purrr::keep( ~ !inherits(.x, 'error')) 
 
-save(assoc_cor, file = here('out/assoc_cor_bmi.Rdata'))
+# BMI workaround
+nobmi <- dplyr::bind_rows(lapply(variables[variables %in% names(out)], function(x) as.data.frame(cbind(x, broom.mixed::tidy(out[[x]]))))) |> 
+  dplyr::filter(term != "(Intercept)") |> 
+  dplyr::select(x, term, estimate, std.error, p.value) |> 
+  dplyr::filter(x!='Body composition_bmi')
+
+bmi <- lm(dbmi ~ age_at_consent + interventionId + value + comprate,
+          data = data[data$rowname=='Body composition_bmi',]) |> 
+  broom::tidy() |> 
+  dplyr::mutate(x = 'Body composition_bmi')|> 
+  dplyr::select(x, term, estimate, std.error, p.value)
+
+df <- rbind(nobmi, bmi) |> 
+  tidyr::pivot_wider(id_cols = x,
+                     names_from = term,
+                     values_from = c(estimate, std.error, p.value))
+save(df, file = "out/predict_dbmi_baseline_all.Rdata")
 ```
 
 ```{r}
-t <- assoc_cor |> 
-  dplyr::filter(!grepl("ASV", x)) |> 
-  dplyr::mutate(padj = p.adjust(V1))
+load("out/predict_dbmi_baseline_all.Rdata")
+source('src/FDRcorr.R')
+df2 <- df |>tidyr::separate(x, "_", into = c('assay', 'var'), extra = 'merge') 
+df2 <- FDRcorr(df2)
 
+sig <- df2[df2$p.value_value_adj < 0.05 & !is.na(df2$p.value_value_adj),]
+```
 
-t |> 
-  ggplot(aes(x = V1)) +
-  geom_histogram(bins = 100)
+## Plot - E12
+
+```{r}
+load("data/data_raw.Rdata")
+dat <- as.data.frame(longForm(data['cells_single_cells_live_cd3neg_defective_freq_of_live',,],
+                              colDataCols = c('subjectId', 'interventionId', 'visitId', 'compliance', 'comprate', 'age_at_consent', 'bmi_at_consent', 'dbmi'))) |> 
+  dplyr::filter(visitId == 'M0' & interventionId != 'S')
+
+p <- dat |> 
+  ggplot(aes(x = value,
+             y = dbmi)) +
+  geom_point(alpha = 0.5) +
+  ggpubr::stat_cor(method = 'spearman',label.x.npc = 'middle') +
+  theme_bw() +
+  labs(x = 'defective NK cells at baseline',
+       y = '∆ BMI at M6')
+
+ggsave(filename = 'figures-png/e12-dbmi.png',width = 3.5, height = 3.5, plot = p)
 ```
 
 # Export as ET11
 
 ```{r}
-load(here("src/vars.Rdata"))
-load(here('out/assoc_cor_bmi.Rdata'))
+load("out/predict_dbmi_baseline_all.Rdata")
+load("src/vars.Rdata")
 
 vars <- vars |>  
-    dplyr::filter(!grepl("ASVs$|families_clr", assay)) |> 
     dplyr::mutate(label = ifelse(!is.na(`second name`), `second name`, label))
   
-assoc_clean <- assoc_cor |> 
-  dplyr::filter(!grepl("ASV", x)) |> 
-  dplyr::mutate(padj = p.adjust(V1)) |> 
-  dplyr::mutate(x = ifelse(grepl("smoking_py|cig_curr|mpstatrs|etoh_curr|age_at_consent|intactcurr|bmi_at_consent", x), paste0("Basic characteristics_", x), x)) |> 
-  tidyr::separate(x, into = c("assay", "x"), sep = "_", extra = 'merge') |> 
-  dplyr::mutate(assay = gsub("..", ": ", assay, fixed = T),
-                assay = gsub(".", " ", assay, fixed = T),
-                x = case_when(assay == 'Stool microbiome: families' & !x %in% c('UCG.010',
-                                                                               'Clostridia.UCG.014_unk1',
-                                                                               '.Eubacterium..coprostanoligenes.group') ~ gsub(".", " ", x, fixed = T),
-                              assay == 'Saliva microbiome: families' & x != 'Clostridia.UCG.014_unk1' ~ gsub(".", " ", x, fixed = T),
-                              x == 'UCG.010' ~ 'UCG-010',
-                              x == 'Clostridia.UCG.014_unk1' ~ 'Clostridia UCG-014_unk1',
-                              x == ".Eubacterium..coprostanoligenes.group" ~ '[Eubacterium] coprostanoligenes group',
-                              TRUE ~ x))  |> 
-  tidyr::unite("x", assay:x) |> 
-  dplyr::select(-padj)|> 
+assoc_clean <- df2 |> 
   dplyr::left_join(dplyr::select(vars, x, assay, assay2, label),
-                   by = c('x' = 'x')) |>
-          dplyr::mutate(variable = ifelse(!is.na(label), label, x),
-                        assay = ifelse(!is.na(assay2), assay2, assay)) |>
-          dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
-  dplyr::relocate(assay, variable) |> 
-  dplyr::mutate(assay = ifelse(is.na(assay), "Basic characteristics",
-                               assay),
-                variable = gsub("Basic characteristics_", "", variable),
-                variable = case_when(variable == 'smoking_py' ~ 'Smoking pack years (at consent)',
-                                     variable == 'bmi_at_consent' ~ "BMI at consent",
-                                     variable == 'mpstatrs' ~ 'Menopause status (at consent)',
-                                     variable == 'age_at_consent' ~ 'Age (at consent)',
-                                     variable == 'cig_curr' ~ 'Cigarettes/d (at consent)',
-                                     variable == 'etoh_curr' ~ 'Alcohol use (y/n, at consent)',
-                                     variable == 'intactcurr' ~ 'Intense activity/week (at consent)',
-                                     TRUE ~ variable))
+                   by = c('var' = 'x',
+                          'assay' = 'assay')) |>
+  dplyr::mutate(variable = ifelse(!is.na(label), label, var),
+                assay = ifelse(!is.na(assay2), assay2, assay)) |>
+  dplyr::select(-any_of(c("var", "label", "assay2"))) |> 
+  dplyr::select(-contains(c("Intercept", "std.error"))) |> 
+  dplyr::select(assay, variable, estimate_value, p.value_value, p.value_value_adj, group)
 
 writexl::write_xlsx(assoc_clean, path = here("out/Extended-Data-Table-11.xlsx"))
 

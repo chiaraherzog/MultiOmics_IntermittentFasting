@@ -24,9 +24,9 @@ website:
           - metabolome-anno.qmd
           - helper-corr-ic-at-baseline_salivamicrob.qmd
           - major-gut-metabolites.qmd
-          - helper-bmi.qmd
-          - helper-corr-ic-at-baseline_salivamicrob.qmd
+          - deltaBMI.qmd
           - dropout-association.qmd
+          - mefisto.qmd
       - section: "Figures"
         contents:
           - fig1-overview.qmd
@@ -34,13 +34,11 @@ website:
           - fig3-epi.qmd
           - fig4-imm-metabolome.qmd
           - fig5-micro.qmd
-          - fig6-integration.qmd
-          - mefisto.qmd
           - mct-effect.qmd
           - menopause.qmd
-          - deltaBMI.qmd
-          - dropout-association.qmd
+          - helper-bmi.qmd
           - timeSensitivity.qmd
+          - fig7-integration.qmd
       - section: "Tables"
         contents:
           - tab1.qmd

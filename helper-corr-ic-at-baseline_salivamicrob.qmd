@@ -1,5 +1,5 @@
 ---
-title: "corr ~ predicted IC contant buccal samples at baseline"
+title: "corr ~ predicted IC content buccal samples at baseline"
 format:
   html:
     toc: true

@@ -8,6 +8,8 @@ format:
     code-tools: true
 ---
 
+::: {.panel-tabset}
+
 # Figures
 
 ::: {.panel-tabset}
@@ -78,26 +80,26 @@ load(here("out/out_lmm_factor.Rdata"))
 
 ```{r cerv.load}
 path = here("data/data_raw.Rdata")
-df_raw_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: cervical"],
+df_raw_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 path = here("data/data_baseline_change.Rdata")
-df_change_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: cervical"],
+df_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
 path = here("data/data_normalized.Rdata")
-df_scaled_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: cervical"],
+df_scaled_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "bmi_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 path = here("data/data_normalized_baseline.Rdata")
-df_scaled_change_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: cervical"],
+df_scaled_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
@@ -105,26 +107,26 @@ df_scaled_change_cerv <- as.data.frame(longFormat(get(load(path))[,,"Composite m
 
 ```{r buc.load}
 path = here("data/data_raw.Rdata")
-df_raw_buccal <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: buccal"],
+df_raw_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 path = here("data/data_baseline_change.Rdata")
-df_change_buccal <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: buccal"],
+df_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
 path = here("data/data_normalized.Rdata")
-df_scaled_buccal <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: buccal"],
+df_scaled_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 path = here("data/data_normalized_baseline.Rdata")
-df_scaled_change_buccal <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: buccal"],
+df_scaled_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
@@ -132,26 +134,26 @@ df_scaled_change_buccal <- as.data.frame(longFormat(get(load(path))[,,"Composite
 
 ```{r blood.load}
 path = here("data/data_raw.Rdata")
-df_raw_blood <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: blood"],
+df_raw_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T) 
 
 path = here("data/data_baseline_change.Rdata")
-df_change_blood <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: blood"],
+df_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
 path = here("data/data_normalized.Rdata")
-df_scaled_blood <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: blood"],
+df_scaled_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent", "bmi_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T) 
 
 path = here("data/data_normalized_baseline.Rdata")
-df_scaled_change_blood <- as.data.frame(longFormat(get(load(path))[,,"Composite methylation scores: blood"],
+df_scaled_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
@@ -551,7 +553,7 @@ dev.off()
 
 ```{r sep.blood}
 ids <- time[grepl('blood', time$x) & !time$x %in% shared$x,]$x
-ids <- ids[c(1, 2, 6, 7, 3:5)]
+ids <- ids[c(1, 2, 6, 7, 3:5, 8)]
 
 labs1 <- vars |> 
   dplyr::filter(grepl('blood', assay2) & grepl(paste0(ids, collapse = '|'), x)) |> 
@@ -576,7 +578,7 @@ blood_sep <- plot_lmm_heatmap_v4(lmm_data_time = time[match(ids, time$x),],
                               colour_assays = F,
                               pval_permutation_filter = T)
 
-blood_sep@row_order <- c(7, 2, 1, 3:5, 6)
+blood_sep@row_order <- c(7, 1, 2:5, 8, 6)
 blood_sep
 
 # # Need to fix sclaing to be in line with other heatmaps:
@@ -883,5 +885,5 @@ ggsave(filename = here("figures-png/e5.png"),
 ```
 
 
-
+:::
 

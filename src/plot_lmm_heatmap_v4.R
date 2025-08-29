@@ -76,18 +76,29 @@ plot_lmm_heatmap_v4 <- function(lmm_data_time,
   # Relabel variables if specified
   if(!is.null(relabel)) {
     if(filter_relabel) {
+      if(any(grepl("stimul", relabel$assay))){
+        tmp <- tmp |>
+          dplyr::inner_join(relabel)
+      } else {
       intersect <- intersect(tmp$x, relabel$x)
       relabel <- relabel[relabel$x %in% intersect,]
       tmp <- tmp[match(relabel$x, tmp$x),]
+      }
     }
+  }
     
     if(age_cor == T) {
       load(here("out/corrAgeBaseline.R"))
+      tmp$fullname <- paste0(tmp$assay,"_", tmp$x)
       corr <- corr |> 
-        tidyr::separate(rowname, "_", into = c("assay", "name"), extra = 'merge') |> 
-        dplyr::slice(match(tmp$x, name))
+        tidyr::separate(rowname, "_", into = c("assay", "name"), extra = 'merge',remove = F) |> 
+        dplyr::slice(match(tmp$fullname, rowname))
       
-      tmp <- tmp |> dplyr::left_join(dplyr::select(corr, name, cor, p), by = c('x' = 'name'))
+      tmp <- tmp |>
+        dplyr::left_join(dplyr::select(corr, rowname, name, cor, p), by = c('x' = 'name',
+                                                                                         'fullname' = 'rowname')) |> 
+        dplyr::select(-c(fullname))
+      
     }
     
     tmp <- tmp |> 
@@ -98,7 +109,6 @@ plot_lmm_heatmap_v4 <- function(lmm_data_time,
     if(relabel_assay == T) {
       tmp <- tmp |> dplyr::mutate(assay = assay2) |> dplyr::select(-assay2)
     }
-  }
   
   # Apply FDR correction and bold significant p-values
   source(here::here("src/FDRcorr.R"))

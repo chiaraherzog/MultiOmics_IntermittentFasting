@@ -1,5 +1,5 @@
 ---
-title: "Immune and metabolome data (F4, ED6/7)"
+title: "Immune and metabolome data (F4, ED6-8)"
 format:
   html:
     toc: true
@@ -7,6 +7,8 @@ format:
     code-overflow: wrap
     code-tools: true
 ---
+
+::: {.panel-tabset}
 
 # Figures
 
@@ -22,7 +24,11 @@ format:
 
 ## Extended Data Figure 7
 
-![](figures-png/e7.png)
+![](figures-png/e7-imm.png)
+
+## Extended Data Figure 8
+
+![](figures-png/e8-metab.png)
 
 :::
 
@@ -111,8 +117,8 @@ ref_urine <-  readRDS("out/RefMet_mapped_urine.Rds")
 load("out/ImmAge_gen_coef.Rdata") # ImmAge_gen_coef
 
 tmp <- ImmAge_gen_coef |> 
-  dplyr::left_join(dplyr::select(populations, name, `second name`)) |> 
-  dplyr::rename(pop_name = `second name`) |> 
+  dplyr::left_join(dplyr::select(populations, name, `population name`)) |> 
+  dplyr::rename(pop_name = `population name`) |> 
   dplyr::mutate(pop_name = gsub("[+]", "<sup>+</sup>", pop_name),
                 pop_name = gsub("[-]", "<sup>-</sup>", pop_name),
                 pop_name = gsub("REG", "<sub>REG</sup>", pop_name))
@@ -156,7 +162,7 @@ dev.off()
 ```{r immage}
 load(here("data/data_raw.Rdata"))
 
-df <- longFormat(data[,,30], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+df <- longForm(data[,,44], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
   as.data.frame() |> 
   dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) 
 
@@ -199,7 +205,7 @@ dev.off()
 ```{r delta.immage}
 load(here("data/data_baseline_change.Rdata"))
 
-df <- longFormat(data[,,'Immune age: general'], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+df <- longForm(data[,,'Immune age: general'], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
   as.data.frame() |> 
   dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) |> 
   dplyr::mutate(compliance = factor(compliance, levels = c("low", "medium", "high"))) |> 
@@ -209,7 +215,7 @@ ylab <- '<b>∆ ImmuneAge</b>'
 
 immage_change <- paired_longitudinal_compliance(df,
                                variable = 'ImmAge_gen',
-                               p = 'p.signif',
+                               p = 'p.format',
                                ylab = ylab,
                                nn = 4,
                                fdr = T) 
@@ -353,8 +359,15 @@ dev.off()
 
 ```{r enrich.saliva}
 library(MetaboAnalystR)
-
-
+labels <- ref_saliva |> 
+  dplyr::rename(x = Input.name,
+                label = Standardized.name,
+                assay2 = Super.class) |> 
+  dplyr::select(x, label, assay2) |> 
+  dplyr::mutate(assay = 'Saliva nuclear magnetic resonance: normalized',
+                x = ifelse(grepl("^[[:digit:]]", x), paste0("X", x), x),
+                x = ifelse(x == "Acetate.", "Acetate.mM.", x),
+                x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
 load(here("out/wilcoxon-tests.Rdata"))
 
 filterFDR <- function(l, t, method, wilcoxon_tests){
@@ -364,15 +377,17 @@ filterFDR <- function(l, t, method, wilcoxon_tests){
     dplyr::rename_with(~ stringr::str_remove(., "_adj$"), ends_with("_adj"))
 }
 
-timenorm <- filterFDR('overall', 'Saliva', 'normalized', wilcoxon_tests) |> dplyr::rename(rowname = x)
+timenorm <- filterFDR('overall', 'Saliva', 'normalized', wilcoxon_tests) |>
+  dplyr::rename(rowname = x)
 
-sig_time <- timenorm |> dplyr::filter(if_any(contains("p_"), ~ . < 0.05)) |> 
+sig_time <- timenorm |>
+  dplyr::filter(if_any(contains("p_"), ~ . < 0.05)) |> 
   dplyr::mutate(met = rowname) |> 
-  dplyr::mutate(met = ifelse(met == 'X5.Aminopentanoate', '5-Aminopentanoate', met)) |> 
+  # dplyr::mutate(met = ifelse(met == 'X5.Aminopentanoate', '5-Aminopentanoate', met)) |> 
   dplyr::pull(met)
 
 # Create mSetObj
-mSet<-InitDataObjects("conc", "msetora", FALSE)
+mSet<-InitDataObjects("list", "msetora", FALSE, 150)
 
 #Set up mSetObj with the list of compounds
 mSet<-Setup.MapData(mSet, sig_time)
@@ -417,8 +432,17 @@ p_saliva <- as.data.frame(mSet_smpdb$analSet$ora.mat) |>
 
 ## Enrichment analysis for urine metabolites
 
-
 ```{r enrich.urine}
+labels <- ref_urine |> 
+  dplyr::rename(x = Input.name,
+                label = Standardized.name,
+                assay2 = Super.class) |> 
+  dplyr::select(x, label, assay2) |> 
+  dplyr::mutate(assay = 'Urine nuclear magnetic resonance: normalized',
+                x = ifelse(grepl("^[[:digit:]]", x), paste0("X", x), x),
+                x = ifelse(x == "Acetate.", "Acetate.mM.", x),
+                x = ifelse(x == 'Trimethylamine N-oxide', 'TMA..N.oxide', x))
+
 sig_time <- time |> dplyr::filter(if_any(contains("p.value_visitId"), ~ . < 0.05)) |> 
   dplyr::mutate(met = gsub("Urine nuclear magnetic resonance: normalized_", "", x)) |> 
   dplyr::mutate(met = ifelse(met == 'Creatine.phosphate', 'Creatine phosphate',
@@ -426,7 +450,7 @@ sig_time <- time |> dplyr::filter(if_any(contains("p.value_visitId"), ~ . < 0.05
   dplyr::pull(met)
 
 # Create mSetObj
-mSet<-InitDataObjects("conc", "msetora", FALSE)
+mSet<-InitDataObjects("list", "msetora", FALSE, 150)
 
 #Set up mSetObj with the list of compounds
 mSet<-Setup.MapData(mSet, sig_time)
@@ -504,7 +528,7 @@ sig_comp <-comp |> dplyr::filter(if_any(contains("p.value_visitId"), ~ . < 0.05)
   dplyr::pull(met)
 
 # Create mSetObj
-mSet<-InitDataObjects("conc", "msetora", FALSE)
+mSet<-InitDataObjects("conc", "msetora", FALSE, 150)
 
 #Set up mSetObj with the list of compounds
 mSet<-Setup.MapData(mSet, sig_comp)
@@ -952,7 +976,151 @@ dev.off()
 ```
 
 
-### 7a) Saliva: PCA - Scree
+
+## Extended data 7
+
+### a-c) biplot for stimulation
+
+```{r}
+experiment <- c("Flow cytometry: stimulated T cells", "Flow cytometry: unstimulated T cells")
+features <- c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")
+
+load(here("data/data_raw.Rdata"))
+
+load("src/populations_names_annotated.Rdata")
+
+relabel <- populations |> 
+  dplyr::filter(staining == 't cell stimulation') |> 
+  dplyr::rename(x = name,
+                label = `population name`)
+
+relabel_stim <- relabel |> dplyr::mutate(x = paste0('Flow.cytometry..stimulated.T.cells_', x),
+                                         label = paste0(label, " (stimulated)"))
+relabel_unstim = relabel |> dplyr::mutate(x = paste0('Flow.cytometry..unstimulated.T.cells_', x),
+                                          label = paste0(label, " (unstimulated)"))
+relabel <- rbind(relabel_stim, relabel_unstim)
+
+pc <- pca(data, experiment, features, relabel = relabel, complete = T,ncontrib = 6)
+```
+
+```{r print.scree.stim}
+cairo_pdf(here("out/pdf/e7a.pdf"),
+          width = 1.5, height = 2.5)
+print(pc$scree)
+dev.off()
+```
+
+### b) PCA biplot (PCs 1/2)
+
+```{r print.pca.biplot.stim, eval = F}
+cairo_pdf(here("out/pdf/e7b.pdf"),
+          width = 3, height = 3.5)
+print(pc$biplot)
+dev.off()
+```
+
+### c) immune PCA Heatmap
+
+```{r, print.imm.pca.heatmap.stim}
+cairo_pdf(here("out/pdf/e7c.pdf"),
+          width = 4, height = 2.5)
+pc$heatmap
+dev.off()
+```
+
+### d) heatmap of changes
+
+```{r}
+# formatting pop names
+load("src/populations_names_annotated.Rdata")
+
+stim_labs <- populations |> 
+  dplyr::filter(staining == 't cell stimulation') |> 
+  dplyr::mutate(x = name,
+                label = `population name`,
+                assay = 'Flow cytometry: stimulated T cells',
+                assay2 = 'Stimulated T cells') |> 
+  dplyr::select(x, label, assay, assay2)
+
+unstim <- stim_labs
+unstim$assay2 = 'Unstimulated T cells'
+unstim$assay <- 'Flow cytometry: unstimulated T cells'
+
+labs <- rbind(stim_labs, unstim)
+
+time <- out_lmm$`Minimal model`
+comp <- out_lmm$`Basic model with BMI`
+
+out <- plot_lmm_heatmap_v4(lmm_data_time = time,
+                               lmm_data_compliance = comp,
+                               relabel = labs,
+                               filter_relabel = T,
+                               relabel_assay = T,
+                               age_cor = T,
+                    colour_assays = list(assay = c("Stimulated T cells" = "#ec6669",
+                                                   "Unstimulated T cells" = "#832c9b")),
+                               cluster = F,
+                               pval_permutation_filter = TRUE)
+```
+
+
+```{r, print.imm.heatmap.stim}
+cairo_pdf(here("out/pdf/e7d.pdf"),
+          width = 6, height = 4.5)
+out
+dev.off()
+```
+
+### e-f) IL-17/TNF
+
+```{r}
+experiment <- c("Flow cytometry: stimulated T cells", "Flow cytometry: unstimulated T cells", "Immune age: general")
+load(here("data/data_raw.Rdata"))
+
+df <- as.data.frame(wideFormat(subsetByAssay(data, experiment),
+               colData = c('subjectId', 'visitId')))
+
+tnf <- df |> 
+  ggplot(aes(x = Immune.age..general_ImmAge_gen,
+             y = Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd8_t_cells_tnf)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~visitId,
+             nrow = 1) +
+  labs(x = 'ImmuneAge',
+       y = 'TNF producing cytotoxic T cells') +
+  theme_bw() +
+  ggpubr::stat_cor(method = 'spearman')
+
+
+
+il17 <- df |> 
+  ggplot(aes(x = Immune.age..general_ImmAge_gen,
+             y = Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd4_t_cells_il17a)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~visitId,
+             nrow = 1) +
+  labs(x = 'ImmuneAge',
+       y = 'IL-17A producing cytotoxic T cells') +
+  theme_bw() +
+  ggpubr::stat_cor(method = 'spearman')
+
+```
+
+```{r}
+cairo_pdf(here("out/pdf/e7e.pdf"),
+          width = 9, height = 3)
+tnf
+dev.off()
+
+cairo_pdf(here("out/pdf/e7f.pdf"),
+          width = 9, height = 3)
+il17
+dev.off()
+```
+
+## Extended Data Figure 8
+
+### Saliva: PCA
 
 ```{r saliva.scree}
 experiment <- c("Saliva nuclear magnetic resonance: normalized")
@@ -970,26 +1138,10 @@ relabel <- ref_saliva |>
                                        TRUE ~ Input.name)) |> 
   dplyr::rename(label = Standardized.name)
 
-pc <- pca(data, experiment, features, complete = T, relabel = relabel)
+pc_saliva <- pca(data, experiment, features, complete = T, relabel = relabel)
 ```
 
-```{r print.saliva.scree}
-cairo_pdf(here("out/pdf/e7a.pdf"),
-          width = 1.5, height = 3)
-pc$scree
-dev.off()
-```
-
-### 6b) Saliva: PCA - Heatmap
-
-```{r print.saliva.pca.heatmap}
-cairo_pdf(here("out/pdf/e7b.pdf"),
-          width = 4, height = 3)
-pc$heatmap
-dev.off()
-```
-
-### 6c) Urine: PCA - Scree
+### Urine: PCA
 
 ```{r urine.scree}
 experiment <- c("Urine nuclear magnetic resonance: normalized")
@@ -1004,22 +1156,34 @@ relabel <- ref_urine |>
                                        TRUE ~ Input.name)) |> 
   dplyr::rename(label = Standardized.name)
 
-pc <- pca(data, experiment, features, complete = T, relabel = relabel)
+pc_urine <- pca(data, experiment, features, complete = T, relabel = relabel)
 ```
+
+### Assemble
+
+```{r print.saliva.scree}
+cairo_pdf(here("out/pdf/e8a.pdf"),
+          width = 1.5, height = 3)
+pc_saliva$scree
+dev.off()
+```
+
+
 
 ```{r print.urine.scree}
-cairo_pdf(here("out/pdf/e7c.pdf"),
+cairo_pdf(here("out/pdf/e8c.pdf"),
           width = 1.5, height = 3)
-pc$scree
+pc_urine$scree
 dev.off()
 ```
 
-### 6d) Urine: PCA - Heatmap
-
+### d) Urine: PCA - Heatmap
 
 ```{r print.urine.pca.heatmap}
-cairo_pdf(here("out/pdf/e7d.pdf"),
+cairo_pdf(here("out/pdf/e8d.pdf"),
           width = 4, height = 3)
-pc$heatmap
+pc_urine$heatmap
 dev.off()
 ```
+
+:::

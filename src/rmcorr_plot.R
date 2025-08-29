@@ -10,8 +10,8 @@ rmcorr_plot <- function(m1, m2, lab1, lab2){
   # Data are loaded
   load(here("out/plot_rmcorr_examples.Rdata"))
   dat <- dat |> 
-    dplyr::select(subjectId, visitId, any_of(m1), any_of(m2)) |> 
-    dplyr::filter(!is.na(.data[[m1]]) & !is.na(.data[[m2]]))
+    dplyr::select(subjectId, visitId, any_of(m1), any_of(m2)) |>  
+    dplyr::filter(if_all(any_of(c(m1, m2)), ~ !is.na(.x)))
   
   # Colours
   load(here("src/cols_for_assays.Rdata"))
@@ -56,9 +56,9 @@ rmcorr_plot <- function(m1, m2, lab1, lab2){
               " (p=", format(mod$p, digits = 2), ")")
   
   # plot
-  plot <- dat |> 
-    dplyr::filter(!is.na(.data[[m1]] & !is.na(.data[[m2]]))) |> 
-    dplyr::select(subjectId, visitId, .data[[m1]], .data[[m2]]) |> 
+  plot <- dat |>
+    dplyr::filter(if_all(any_of(c(m1, m2)), ~ !is.na(.x))) |> 
+    dplyr::select(subjectId, visitId, any_of(c(m1, m2))) |> 
     ggplot(aes(x = .data[[m1]],
                y = .data[[m2]])) +
     geom_point(aes(colour = subjectId),

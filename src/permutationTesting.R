@@ -24,6 +24,7 @@ permutationTesting <- function(df,
                                n = 500,
                                model = 'value ~ visitId*compliance + age_at_consent + bmi_at_consent + (1 | subjectId)') {
   
+  suppressMessages(suppressWarnings({
   library(dplyr)
   library(data.table)
   library(future)
@@ -35,8 +36,11 @@ permutationTesting <- function(df,
   library(lme4)
   library(cli)
   library(parallel)
+  }))
   
   set.seed(1234)
+  
+  options(future.globals.maxSize = 8 * 1024^3) 
   
   # Set up parallel processing plan
   plan(multisession, workers = availableCores()/8)

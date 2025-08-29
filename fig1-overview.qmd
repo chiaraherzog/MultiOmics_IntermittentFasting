@@ -8,6 +8,8 @@ format:
     code-tools: true
 ---
 
+::: {.panel-tabset}
+
 # Figures
 
 ::: {.panel-tabset}
@@ -307,11 +309,9 @@ df.var.1 <- df.var |>
                               "Urine nuclear magnetic resonance: clr")) |>
   dplyr::mutate(assay = gsub("\\.clr","",assay)) |>
   
-  # Filter superfluous features
-  dplyr::filter(!grepl("_plaque_max|imt_max|_hba1c_ifcc|_ft4|_ft3|height", featureid)) |> 
-  
   # Group clinical features as one + flow cytometry together as immune features
-  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) ~ "Flow cytometry: immune cells", 
+  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) & !grepl("stimulat", assay) ~ "Flow cytometry: immune cells", 
+                                  grepl("stimulated", assay) ~ "Flow cytometry: T cell stimulation",
                                   grepl("magnetic", assay) & grepl("Saliva", assay) ~ "Saliva metabolome",
                                   grepl("Skin", assay) ~ "Functional clinical features",
                                   grepl("magnetic", assay) & grepl("Urine", assay) ~ "Urine metabolome",
@@ -328,10 +328,9 @@ df.var.1 <- df.var |>
 iccplot <- df.var.1 |> 
   ggplot(aes(y = assay,
              x = icc)) +
-  geom_jitter(aes(colour = assay),
+  ggbeeswarm::geom_quasirandom(aes(colour = assay),
                             alpha = 0.5,
-                            size = 1.2,
-                            position = position_jitter(width = 0.2)) +
+                            size = 1.6) +
   geom_boxplot(outlier.shape = NA,
                aes(fill = assay),
                alpha = 0.4) +
@@ -341,20 +340,21 @@ iccplot <- df.var.1 |>
   theme(legend.position = 'none',
         axis.text.y = element_markdown()) +
   scale_x_continuous(position = 'top')  +
-  scale_colour_manual(values = grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(13),
+  scale_colour_manual(values = grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(14),
                       aesthetics = c('colour', 'fill')) +
   coord_cartesian(xlim = c(0, 1))
 
 # # save colours for re-use elsewhere
 levels <- levels(df.var.1$assay)
-cols2 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(13)
+cols2 <- grDevices::colorRampPalette(cols[c(8, 1,2,3,5,4,6,7)])(14)
 names(cols2) = gsub("<b>|</b>", "", levels)
 cols_for_assays <- cols2
 names(cols_for_assays) <- c("Saliva metabolome", "Urine metabolome",
-                            "Stool microbiome", "Blood methylation",
-                            "Stool microbiome (ASVs)", "Saliva microbiome",
-                            "Cervical methylation", "Body composition",
-                            "Functional clinical features", "Saliva microbiome (ASVs)",
+                            "Stool microbiome: families", "Blood methylation",
+                            "Stool microbiome (ASVs)", "Saliva microbiome: families",
+                            "Cervical methylation", 
+                            "Functional clinical features", "Body composition",
+                            "Saliva microbiome (ASVs)", "Flow cytometry: T cell stimulation",
                             "Routine bloods", "Buccal methylation",
                             "Flow cytometry: immune cells")
 save(cols_for_assays, file = here("src/cols_for_assays.Rdata"))
@@ -371,8 +371,8 @@ dev.off()
 ### f) Top variable features, barplot
 
 ```{r topvar.bar, eval = F}
-n <- 0.3 # Prop of top cells
-load(here("out/variance_partition_df_var.Rdata")) # note: revised and this are identical, except one has ASVs added.
+n <- 0.3 # Prop of top rows
+load(here("out/variance_partition_df_var_revised.Rdata")) # note: revised and this are identical, except one has ASVs added.
 
 exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
              "cells_single_cells_live_t_cells_cd4_t_cells_freq_of_parent",
@@ -380,24 +380,21 @@ exclude <- c("cells_single_cells_live_t_cells_freq_of_parent",
 
 # features with max icc
 features <- df.var |>
-  
-  # keep only clr normalized microbiome/metabolome data
-  dplyr::filter(!assay %in% c("Saliva microbiome: ASVs","Saliva microbiome: families.clr",
-                              "Stool microbiome: ASVs", "Stool microbiome: families.clr",
-                              "Saliva nuclear magnetic resonance: clr","Urine nuclear magnetic resonance: clr") & !grepl("ASVs", assay)) |>
+  dplyr::filter(!grepl("ASV", assay)) |> 
   tidyr::separate(featureid, "_", into = c(NA, 'rowname'), remove = F, extra = 'merge') |> 
-  dplyr::filter(!grepl("sports|sono", assay) & !rowname %in% exclude & rowname != "height") |> 
   
   # Group clinical features as one + flow cytometry together as immune features
-  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) ~ "Flow cytometry: immune cells", 
+  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) & !grepl("stimulat", assay) ~ "Flow cytometry: immune cells", 
+                                  grepl("stimulated", assay) ~ "Flow cytometry: T cell stimulation",
                                   grepl("magnetic", assay) & grepl("Saliva", assay) ~ "Saliva metabolome",
+                                  grepl("Skin", assay) ~ "Functional clinical features",
                                   grepl("magnetic", assay) & grepl("Urine", assay) ~ "Urine metabolome",
-                                  grepl("haemogram", assay) ~ "Routine bloods",
-                                  grepl("bmi|weight|scfat|vifat", featureid) ~ "Body composition",
-                                  TRUE ~ assay),
-                # Formatting of text
-                assay = ifelse(grepl("bloods|metabolome|clinical|composition", assay), paste0("<b>", assay, "</b>"),
-                               paste0("<b>", gsub("[:]", "</b>:", assay)))) |> 
+                                  grepl("haemogram", assay) | (grepl("exam", assay) & !grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", featureid)) ~ "Routine bloods",
+                                  (grepl("exam", assay) & grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", featureid)) | (grepl("sono", assay) & grepl("pwv|imt|plaque", featureid)) ~ "Functional clinical features",
+                                  grepl("bmi|weight|scfat|vifat|bcm|ecw|fm", featureid) ~ "Body composition",
+                                  grepl("clr", assay) ~ gsub("[.]clr", "" ,assay),
+                                  TRUE ~ assay)) |> 
+  dplyr::ungroup() |> 
   dplyr::arrange(desc(icc)) |> 
   dplyr::slice(1:(n()*n)) |> 
   dplyr::select(featureid, assay)
@@ -451,8 +448,9 @@ dev.off()
 ```{r pcheatmap, eval = F}
 # Get raw data for these features
 load("data/data_normalized.Rdata")
-omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 40:41)
-df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
+omes <- c(3, 13, 14, 6:8, 10, 15, 13, 5, 9, 1, 16, 22)
+
+df <-  MultiAssayExperiment::longForm(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
                                         colDataCols=c("interventionId", "subjectId", "visitId", "age_at_consent", "compliance", "mpstatrs", "bmi_at_consent",
                                                       "pattern", "supplement")) |> 
   as.data.frame() |> 
@@ -466,7 +464,7 @@ df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data
 mat <- as.matrix(df[,10:ncol(df)]) # matrix with data only
 rownames(mat) <- paste0(df$subjectId, df$visitId)
 
-pc <- FactoMineR::PCA(mat,graph = F,ncp = 5)
+pc <- FactoMineR::PCA(mat,graph = F,ncp = 10)
 # factoextra::fviz_screeplot(pc)
 
 pcdat <- as.data.frame(pc$ind$coord)
@@ -481,12 +479,12 @@ pcdat$fastingpattern <- df$pattern
 pcdat$supplement <- df$supplement
 
 pheno <- pcdat |> 
-  dplyr::select(-c(Dim.1:Dim.5)) |> 
+  dplyr::select(-c(Dim.1:Dim.10)) |> 
   dplyr::mutate_if(is.character, as.factor)
 
 pcs <- pcdat |> 
   dplyr::rename_at(vars(contains("Dim")), ~ gsub("Dim.", "PC", .)) |> 
-  dplyr::select(PC1:PC5)
+  dplyr::select(PC1:PC10)
 
 grid <- matrix(ncol = ncol(pcs),
                nrow = ncol(pheno))
@@ -536,7 +534,7 @@ heatmap <- Heatmap(-log10(grid_sig),
 
 ```{r print.pcheatmap, eval = F}
 cairo_pdf(here("out/pdf/1g.pdf"),
-          width = 3,
+          width = 3.5,
           height = 2.5)
 plot(heatmap)
 dev.off()
@@ -608,7 +606,13 @@ plot(pattern)
 dev.off()
 ```
 
-### b) Supplement compliance
+### b) Dropouts
+
+```{r}
+# Code in tab1.qmd
+```
+
+### d) Supplement compliance
 
 ```{r fig.width = 2.6, fig.height = 4, eval = F}
 load("data/data_raw.Rdata")
@@ -691,7 +695,7 @@ suppl
 ```
 
 ```{r print.suppl1, eval = F}
-cairo_pdf(here("out/pdf/e1b.pdf"),
+cairo_pdf(here("out/pdf/e1c.pdf"),
           width = 3.5,
           height = 2.57)
 plot(suppl)
@@ -734,14 +738,14 @@ supplstop
 ```
 
 ```{r print.supplstop, eval = F}
-cairo_pdf(here("out/pdf/e1c.pdf"),
+cairo_pdf(here("out/pdf/e1d.pdf"),
           width = 1.2,
           height = 2.57)
 plot(supplstop)
 dev.off()
 ```
 
-### d) Effects reported
+### e) Effects reported
 
 ```{r effects, eval = F}
 load(here(db_path, "data/tirolgesund/pheno/clinfeedback.Rdata"))
@@ -798,14 +802,14 @@ effect
 ```
 
 ```{r print.effects, eval = F}
-cairo_pdf(here("out/pdf/e1d.pdf"),
+cairo_pdf(here("out/pdf/e1e.pdf"),
           width = 2.5,
           height = 2.57)
 plot(effect)
 dev.off()
 ```
 
-### e) What effect reported?
+### f) What effect reported?
 
 ```{r wordsplot, eval = F}
 words <- clinfeedback |> 
@@ -876,7 +880,7 @@ plot(wordsplot)
 dev.off()
 ```
 
-### f) EQ-5D-5L VAS
+### g) EQ-5D-5L VAS
 
 ```{r vas, eval = F}
 load(here(db_path, "data/tirolgesund/pheno/eq5d5l.Rdata"))
@@ -920,14 +924,14 @@ vas <- eq5d5l |>
 ```
 
 ```{r print.vas, eval = F}
-cairo_pdf(here("out/pdf/e1f.pdf"),
+cairo_pdf(here("out/pdf/e1g.pdf"),
           width = 2.57,
           height = 2.57)
 plot(vas)
 dev.off()
 ```
 
-### g) EQ-5D-5L Scores
+### h) EQ-5D-5L Scores
 
 ```{r eq, eval = F}
 tmp <- eq5d5l |> 
@@ -969,10 +973,130 @@ scores <- tmp2 |>
 ```
 
 ```{r print.eq, eval = F}
-cairo_pdf(here("out/pdf/e1g.pdf"),
-          width = 5,
+cairo_pdf(here("out/pdf/e1h.pdf"),
+          width = 3.75,
           height = 2.57)
 plot(scores)
+dev.off()
+```
+
+### i) Exercise
+
+```{r}
+## wearable
+load(here(db_path, "data/tirolgesund/wearable/wearable_activity.Rdata"))
+wearable <- data
+
+## mae
+library(MultiAssayExperiment)
+load("data/data_raw.Rdata")
+pheno <- colData(data)
+t <- data@metadata
+dates <- as.data.frame(t$`timing of collection`) |> dplyr::filter(assay == 'Blood haemogram') |> 
+  dplyr::mutate(subjectId = substr(primary, 1, 4),
+                visitId = substr(primary, 5, nchar(primary))) |> 
+  dplyr::rename(visit_day_t = t)
+
+# make sure your timestamps are Dates (or POSIXct that can be compared as dates)
+# assuming wearable$t and dates$visit_day_t are Date; if not, cast with as.Date()
+
+# 1) Build 14-day windows ---------------------------------
+
+# Baseline (M0): first 14 days of wearable per subject
+baseline_windows <- wearable |> 
+  group_by(subjectId) |> 
+  summarise(
+    start = 1,
+    end   = 14,
+    label = "M0",
+    .groups = "drop"
+  )
+
+# Visit windows: 14 days before each visit (exclude M0 so baseline is “first 2 weeks”)
+visit_windows <- dates |> 
+  filter(!is.na(visit_day_t), !grepl("^M0$", visitId, ignore.case = TRUE)) |> 
+  transmute(
+    subjectId,
+    start = visit_day_t - 13,
+    end   = visit_day_t,
+    label = visitId
+  )
+
+interval_windows <- bind_rows(baseline_windows, visit_windows)
+
+# 2) Assign each daily wearable row to a window ------------
+nonwear_threshold <- 500
+active_threshold  <- 7000
+
+wearable_filtered <- wearable |> 
+  filter(steps > nonwear_threshold) |> 
+  mutate(activity_level = ifelse(steps >= active_threshold, "Active", "Sedentary"))
+
+d_int  <- as.data.table(interval_windows)
+d_days <- as.data.table(wearable_filtered)
+
+setkey(d_int, subjectId, start, end)
+
+# t in (start, end] — i.e., strictly after start, up to and including end.
+# (Prevents double-assign at boundaries if two windows abut.)
+d_days[d_int, on = .(subjectId, t > start, t <= end), label := i.label]
+
+dailies <- d_days[!is.na(label)]
+
+
+interval_summary <- dailies |> 
+  group_by(subjectId, label) |> 
+  summarise(
+    across(c(activekcal, bmr, fitnessage, remsleep, rhr, steps, minvigint),
+           ~ mean(.x, na.rm = TRUE),
+           .names = "mean_{.col}"),
+    activity_level_summary = {
+      x <- activity_level[!is.na(activity_level)]
+      if (length(x) == 0) NA_character_
+      else {
+        tab <- table(x)
+        # pick the mode; if tied, keep the first seen in the original order
+        modes <- names(tab)[tab == max(tab)]
+        x[match(TRUE, x %in% modes)]
+      }
+    },
+    .groups = "drop"
+  )
+
+# append pheno
+interval_summary <- interval_summary |>
+  dplyr::rename(visitId = label) |> dplyr::left_join(pheno, copy = T)
+
+# Individuals who remained in the study (no dropout, complete data for steps)
+complete <- interval_summary |> 
+  dplyr::filter(is.na(dropout_reason)) |> 
+  dplyr::group_by(subjectId) |> 
+  dplyr::filter(all(c("M0", "M2", "M4", "M6") %in% visitId)) |>
+  dplyr::pull(subjectId) |> 
+  unique()
+
+plot <- interval_summary |> 
+  dplyr::filter(interventionId != 'S') |> 
+  dplyr::filter(subjectId %in% complete) |> 
+  ggplot(aes(x = visitId,
+             y = mean_steps)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_line(aes(group = subjectId),
+            alpha = 0.3,
+            colour = 'grey70') +
+  facet_wrap(~interventionId) +
+  theme_bw() +
+  labs(y = 'average steps/day\nduring interval') +
+  ggpubr::stat_compare_means(ref.group = 'M0', label = 'p.signif', paired = T,
+                             label.y.npc = 0.95)
+
+```
+
+```{r print.ex, eval = F}
+cairo_pdf(here("out/pdf/e1i.pdf"),
+          width = 2.95,
+          height = 2.57)
+plot(plot)
 dev.off()
 ```
 
@@ -983,8 +1107,8 @@ dev.off()
 ```{r pc.hull, eval = F}
 # Get raw data for these features
 load("data/data_normalized.Rdata")
-omes <- c(1, 3, 4, 5, 6, 9, 10, 13:16, 22, 40:41)
-df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
+omes <- c(3, 13, 14, 6:8, 10, 5, 9, 1, 16, 22)
+df <-  MultiAssayExperiment::longForm(data[,data$interventionId != "S" & !data$visitId %in% c("M12", "M18"),omes],
                                         colDataCols=c("interventionId", "subjectId", "visitId", "age_at_consent", "compliance", "mpstatrs", "bmi_at_consent",
                                                       "pattern", "supplement")) |> 
   as.data.frame() |> 
@@ -998,7 +1122,7 @@ df <-  MultiAssayExperiment::longFormat(data[,data$interventionId != "S" & !data
 mat <- as.matrix(df[,10:ncol(df)]) # matrix with data only
 rownames(mat) <- paste0(df$subjectId, df$visitId)
 
-pc <- FactoMineR::PCA(mat,graph = F,ncp = 5)
+pc <- FactoMineR::PCA(mat,graph = F,ncp = 10)
 # factoextra::fviz_screeplot(pc)
 
 pcdat <- as.data.frame(pc$ind$coord)
@@ -1126,7 +1250,8 @@ tmp5 <- tmp4 |>
 
 # Relabel assays
 tmp6 <- tmp5 |>
-  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) ~ assay, 
+  dplyr::mutate(assay = case_when(grepl("Flow cytometry", assay) & !grepl("stim", assay) ~ assay,
+                                  grepl("stimulat", assay) ~ 'Flow cytometry: T cell stimulation', 
                                   grepl("magnetic", assay) & grepl("Saliva", assay) ~ "Saliva metabolome",
                                   grepl("magnetic", assay) & grepl("Urine", assay) ~ "Urine metabolome",
                                   grepl("haemogram", assay) | (grepl("exam", assay) & !grepl("_fe|_fv|_sysbp|_diabp|_vo2max|_rel|_abs|_max", feature)) ~ "Routine bloods",
@@ -1135,8 +1260,6 @@ tmp6 <- tmp5 |>
                                   grepl("methylation", assay) & grepl("blood", assay) ~ "Blood methylation",
                                   grepl("methylation", assay) & grepl("cervical", assay) ~ "Cervical methylation",
                                   grepl("methylation", assay) & grepl("buccal", assay) ~ "Buccal methylation",
-                                  grepl("microbiome", assay) & grepl("Stool", assay) ~ "Stool microbiome",
-                                  grepl("microbiome", assay) & grepl("Saliva", assay) ~ "Saliva microbiome",
                                   TRUE ~ assay))
 
 contrib <- tmp6
@@ -1173,25 +1296,31 @@ pc2 <- pcContrib(contrib, 2)
 pc3 <- pcContrib(contrib, 3)
 pc4 <- pcContrib(contrib, 4)
 pc5 <- pcContrib(contrib, 5)
+pc6 <- pcContrib(contrib, 6)
+pc7 <- pcContrib(contrib, 7)
+pc8 <- pcContrib(contrib, 8)
+pc9 <- pcContrib(contrib, 9)
+pc10 <- pcContrib(contrib, 10)
 
-pcs <- (pc1|pc2|pc3|pc4|pc5) + plot_layout(guides = 'collect') &
+pcs <- ((pc1|pc2|pc3|pc4|pc5)/(pc6|pc7|pc8|pc8|pc10)) + plot_layout(guides = 'collect') &
   theme(legend.position = 'right')
 ```
 
 ```{r plot.e2, eval = F}
 design <- "
 AAABB
+CCCCC
 CCCCC"
 
 plot <- (a+b + pcs) +
   plot_annotation(tag_levels = c('a')) +
-  plot_layout(design = design)
+  plot_layout(design = design) & theme(plot.tag = element_text(face = 'bold'))
 ```
 
 ```{r print.e2, eval = F}
 cairo_pdf(here("out/pdf/e2.pdf"),
           width = 12,
-          height = 11)
+          height = 16)
 plot(plot)
 dev.off()
 
@@ -1199,3 +1328,5 @@ dev.off()
 #        filename = "figures-png/e2.png",
 #        width = 12, height = 11)
 ```
+
+:::

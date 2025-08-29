@@ -9,6 +9,7 @@ plot_tissue_comparison <- function(dat_cerv,
                                    ylab = '',
                                    filter_high = T,
                                    fdr = T){
+
   
   # Merge
   dat <- plyr::rbind.fill(dat_blood, dat_buccal, dat_cerv)  |> 
@@ -61,9 +62,9 @@ plot_tissue_comparison <- function(dat_cerv,
     
     # Set up the variable filter
     filter <- if(!is.null(variable_blood)){
-      "(assay %in% c('Composite methylation scores: buccal', 'Composite methylation scores: cervical') & rowname %in% variable) | (assay %in% c('Composite methylation scores: blood') & rowname %in% variable_blood)"
+      "(assay %in% c('Composite methylation scores: buccal', 'Composite methylation scores: cervical') & x %in% variable) | (assay %in% c('Composite methylation scores: blood') & x %in% variable_blood)"
     } else {
-      "(assay %in% c('Composite methylation scores: buccal', 'Composite methylation scores: cervical', 'Composite methylation scores: buccal') & rowname %in% variable)"
+      "(assay %in% c('Composite methylation scores: buccal', 'Composite methylation scores: cervical', 'Composite methylation scores: buccal') & x %in% variable)"
     }
     
     get_fdr_compliance_pvals <- function(wilcoxon_tests = wilcoxon_tests, filter_high = filter_high){
@@ -76,7 +77,7 @@ plot_tissue_comparison <- function(dat_cerv,
       
         long_pval <- wilcoxon_tests[[comp]] |>  # grab relevant wilcoxon test result item
           dplyr::filter(!!rlang::parse_expr(filter)) |>                               # filter variable
-          dplyr::select(assay, rowname, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
+          dplyr::select(assay, x, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
           tidyr::pivot_longer(any_of(ends_with("_adj"))) |>                 # pivot to long format
           dplyr::rowwise() |> 
           dplyr::mutate(visitId = gsub("p_|_adj", "", name),  
@@ -84,7 +85,7 @@ plot_tissue_comparison <- function(dat_cerv,
                         p_value = paste0(signif(value, 2), gsub("[.]", "", p_value_label)),
                         group1 = 'M0',
                         group2 = visitId) |> 
-          dplyr::select(rowname, assay, visitId, p_value, p_value_label, group1, group2) |> 
+          dplyr::select(x, assay, visitId, p_value, p_value_label, group1, group2) |> 
           dplyr::ungroup()
         
         return(long_pval)
@@ -105,7 +106,8 @@ plot_tissue_comparison <- function(dat_cerv,
       dplyr::ungroup() |>
       dplyr::select(assay, rowname, ypos, maxval, sampletype) |> dplyr::distinct()
     
-    fdr_p <- fdr_p |> dplyr::left_join(ypos, by = join_by('rowname', 'assay'))
+    fdr_p <- fdr_p |> dplyr::left_join(ypos, by = c('x' = 'rowname',
+                                                    'assay' = 'assay'))
     
     tip_lengths <- 0.02
     
@@ -115,9 +117,9 @@ plot_tissue_comparison <- function(dat_cerv,
       geom_boxplot(outlier.shape = NA,
                    aes(fill = sampletype),
                    alpha = 0.2) +
-      geom_line(aes(group = subjectId,
-                    colour = sampletype),
-                alpha = 0.2) +
+      # geom_line(aes(group = subjectId,
+      #               colour = sampletype),
+      #           alpha = 0.2) +
       facet_wrap2(~sampletype,strip = stripcol) +
       scale_colour_manual(values = colours,
                           aesthetics = c('fill', 'colour')) +
