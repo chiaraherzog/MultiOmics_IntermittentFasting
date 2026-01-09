@@ -1,5 +1,5 @@
 ---
-title: "Microbiome data (F5, ED9, 10)"
+title: "Microbiome data (F5, ED10-11)"
 format:
   html:
     toc: true
@@ -18,11 +18,11 @@ format:
 
 ![](figures-png/figure5-microbiome_revised.png)
 
-## Extended Data Figure 9
+## Extended Data Figure 10
 
 ![](figures-png/e9_microbiome.png)
 
-## Extended Data Figure 10
+## Extended Data Figure 11
 
 ![](figures-png/e10_microbiome.png)
 

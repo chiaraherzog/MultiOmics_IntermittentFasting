@@ -1,5 +1,5 @@
 ---
-title: "Effect of menopause (E11)"
+title: "Effect of menopause (E12)"
 format:
   html:
     toc: true
@@ -12,7 +12,7 @@ format:
 
 # Figures
 
-## Extended data figure 11
+## Extended data figure 12
 
 ![](figures-png/e11.png)
 

@@ -1,5 +1,5 @@
 ---
-title: "Immune and metabolome data (F4, ED6-8)"
+title: "Immune and metabolome data (F4, ED7-9)"
 format:
   html:
     toc: true
@@ -18,15 +18,15 @@ format:
 
 ![](figures-png/figure4-imm-metab.png)
 
-## Extended Data Figure 6
+## Extended Data Figure 7
 
 ![](figures-png/e6.png)
 
-## Extended Data Figure 7
+## Extended Data Figure 8
 
 ![](figures-png/e7-imm.png)
 
-## Extended Data Figure 8
+## Extended Data Figure 9
 
 ![](figures-png/e8-metab.png)
 
@@ -613,7 +613,7 @@ dev.off()
 
 ```
 
-## Extended Data Figure 6
+## Extended Data Figure 8
 
 ### a) immune data PCA: scree diagram
 
@@ -1118,7 +1118,7 @@ il17
 dev.off()
 ```
 
-## Extended Data Figure 8
+## Extended Data Figure 9
 
 ### Saliva: PCA
 

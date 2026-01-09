@@ -1,5 +1,5 @@
 ---
-title: "Epigenetic data (F3, ED5)"
+title: "Epigenetic data (F3, ED6)"
 format:
   html:
     toc: true
@@ -18,7 +18,7 @@ format:
 
 ![](figures-png/figure3-epigenetic.png)
 
-## Extended Data figure 5
+## Extended Data figure 6
 
 ![](figures-png/e5.png)
 
@@ -646,7 +646,7 @@ print(grimv2)
 dev.off()
 ```
 
-## Extended Data figure 5
+## Extended Data figure 6
 
 ### a, b) Supplementary PC plot - cervical
 

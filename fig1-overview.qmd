@@ -1,5 +1,5 @@
 ---
-title: "Overview data (F1, ED1+2)"
+title: "Overview data (F1, ED1-3)"
 format:
   html:
     toc: true
@@ -23,6 +23,10 @@ format:
 ![](figures-png/e1.png)
 
 ## Extended Data Figure 2
+
+![](figures-png/UpSetPlot.png)
+
+## Extended Data Figure 3
 
 ![](figures-png/e2.png)
 
@@ -1100,7 +1104,69 @@ plot(plot)
 dev.off()
 ```
 
+
 ## Extended Data figure 2
+
+(Reviewer request, UpSet plot)
+
+```{r}
+load("data/data_raw.Rdata")
+x <- as.data.frame(sampleMap(data))
+
+# simple matrix
+tmp <- x |> dplyr::filter(assay %in% c("Blood haemogram",
+                                                 "Skin histology and transepidermal water loss assay",
+                                                 "Saliva nuclear magnetic resonance",
+                                                 "Urine nuclear magnetic resonance",
+                                                 "Saliva microbiome: families",
+                                                 "Stool microbiome: families",
+                                         "Flow cytometry: white blood cell staining",
+                                                 "Composite methylation scores: blood",
+                                                 "Composite methylation scores: buccal",
+                                                 "Composite methylation scores: cervical")) |> 
+  dplyr::mutate(visitId = substr(primary, 5, nchar(primary)),
+                subjectId = substr(primary, 1, 4)) |> 
+  dplyr::mutate(sampletype = case_when(grepl("Blood|blood|Flow", assay) ~ "blood",
+                                  grepl("Saliva", assay) ~ "saliva",
+                                  grepl("Urine", assay) ~ "urine",
+                                  grepl("Stool", assay) ~ "faecal",
+                                  grepl("cervical", assay) ~ "cervical",
+                                  grepl("buccal", assay) ~ "buccal",
+                                  grepl("Skin", assay) ~ "skin"))|> 
+  droplevels() |> 
+  dplyr::filter(!visitId %in% c("M12", "M18")) |> 
+  dplyr::mutate(assay = case_when(grepl("microbiome", assay) ~ gsub("[:][ ]families", "", assay),
+                                  grepl("nuclear", assay) ~ gsub("nuclear[ ]magnetic[ ]resonance", "metabolome", assay),
+                                  grepl("methylation", assay) ~ paste0(stringr::str_to_sentence(stringr::str_split_i(assay, "[ ]", 4)), "  methylation"),
+                                  grepl("haemo", assay) ~ "Routine bloods",
+                                  grepl("Flow", assay) ~ "Immune profiling",
+                                  grepl("Skin", assay) ~ "Skin Histology")) |> 
+  dplyr::filter(!visitId %in% c("M12", "M18") & !grepl("S", subjectId)) |> 
+  dplyr::mutate(set = paste(assay, visitId, sep = '_'),
+           present = 1L)
+
+wide <- tmp |> 
+  dplyr::select(subjectId, set, present) |> 
+  tidyr::pivot_wider(names_from = set, values_from = present, values_fill = 0L,
+                     id_cols = subjectId) |> 
+  as.data.frame() |> 
+  dplyr::select(-subjectId)
+
+library(UpSetR)
+up <- upset(wide,nsets = 40, order.by = 'freq',
+      mb.ratio = c(0.3, 0.7))
+```
+
+```{r}
+pdf(file = 'figures-png/UpSetPlot.pdf',
+    width = 6,
+    height = 7)
+print(up)
+dev.off()
+```
+
+
+## Extended Data figure 3
 
 ### a) PC Hulls 
 
@@ -1318,7 +1384,7 @@ plot <- (a+b + pcs) +
 ```
 
 ```{r print.e2, eval = F}
-cairo_pdf(here("out/pdf/e2.pdf"),
+cairo_pdf(here("out/pdf/e3.pdf"),
           width = 12,
           height = 16)
 plot(plot)

@@ -1,5 +1,5 @@
 ---
-title: "Figure 7: Integrative analysis (F7, E14-16)"
+title: "Figure 7: Integrative analysis (F7, E14-17)"
 format:
   html:
     toc: true
@@ -18,15 +18,15 @@ format:
 
 ![](figures-png/figure6-integration.png)
 
-## Extended Data Figure 14
+## Extended Data Figure 15
 
 ![](figures-png/e14-mefisto.png)
 
-## Extended Data Figure 15
+## Extended Data Figure 16
 
 ![](figures-png/e14.png)
 
-## Extended Data Figure 16
+## Extended Data Figure 17
 
 ![](figures-png/e15.png)
 
@@ -562,11 +562,11 @@ dev.off()
 ```
 
 
-## Extended Data Figure 14
+## Extended Data Figure 15
 
 see [mefisto analysis helper](mefisto.qmd)
 
-## Extended Data 15
+## Extended Data Figure 16
 
 ### a) p value histogram
 
@@ -696,7 +696,7 @@ ggsave(i, filename = 'out/pdf/e14i.pdf', width = 4.5, height = 3.5)
 ```
 
 
-## Extended Data Figure 13
+## Extended Data Figure 17
 
 ```{r}
 features = 'hematocrit|hemoglobin|ferritin|transferrin|transferrinsat|buccal_ic'
