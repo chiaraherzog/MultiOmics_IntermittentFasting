@@ -18,11 +18,11 @@ format:
 
 ![](figures-png/figure5-microbiome_revised.png)
 
-## Extended Data Figure 10
+## Extended Data Figure 11
 
 ![](figures-png/e9_microbiome.png)
 
-## Extended Data Figure 11
+## Extended Data Figure 12
 
 ![](figures-png/e10_microbiome.png)
 
@@ -65,6 +65,7 @@ suppressWarnings(suppressMessages({
   library(viridis)
   library(rcartocolor)
   library(openxlsx)
+  library(phyloseq)
   }))
 ```
 
@@ -94,6 +95,136 @@ source("src/scan_selection_microbfunc_heatmap_v3.R")
 
 ```
 
+# Curation taxonomic assignments
+
+* Automated versus curated taxonomic assignment ASVs
+* exclude four samples with missing labels (stool)
+* exclude blanks (saliva)
+* exclude M12
+* Only complete cases
+* exclude smoking cessation arm
+
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+
+#Automated assignemnts #-----
+
+# pheno-file for stool and saliva combined
+pheno <- readRDS("~/Dropbox/tg-data-prep/prep-scripts/5-microbiome/1-output/pheno-microbiome.Rds")
+
+### Stool samples
+
+# read in phyloseq object provided by JMF
+ASV <- readRDS("~/Dropbox/eca/tirolgesund/5-exploratory/5-microbiome/1-preprocessed-data/0-DADA2-output_JMF/JMF-2301-07_16S_refined_phyloseq.Rds")
+
+#prep pheno file with meta-data
+pheno2 <- pheno %>% 
+  filter(jmf_sample_id %in% c(ASV@sam_data@row.names)) %>% #get stool samples only
+  filter(sampletype != "Missing labels") %>% #remove samples for which label is missing
+  filter(visitId %in% c("M0","M2","M4","M6")) %>% #remove M12
+  filter(interventionId %in% c("I","K")) %>% # Intermittent fasting only
+   group_by(subjectId) %>%
+  filter(all(c("M0","M2","M4","M6") %in% visitId)) %>%
+  ungroup() %>%
+  dplyr::rename(group=jmf_sample_id) %>%
+  dplyr::relocate(group)
+
+# add more metadata
+load("~/Dropbox/tg-data-prep/processed/pheno/general/data.Rdata")
+data <- data %>% filter(subjectId %in% c(pheno2$subjectId)) %>% select(-c(interventionId,))
+pheno2 <- full_join(pheno2, data, by = "subjectId") 
+
+# prep OTU table with taxonomic assignment
+OTUtable <- as.data.frame(ASV@otu_table) %>% 
+  select(all_of(pheno2$group)) %>% #keep only samples in relevant subset
+  rownames_to_column(var="ASV") 
+tax <- as.data.frame(ASV@tax_table) %>% dplyr::rename(Kingdom=Domain) %>% rownames_to_column(var="ASV")
+OTUtable <- full_join(OTUtable,tax, by = "ASV")
+
+# remove ASVs with no read count
+OTUtable <- OTUtable %>% 
+  mutate(sum_count = rowSums(select(., starts_with("JMF")))) %>%
+  filter(sum_count > 0) %>%
+  select(-sum_count) #6984 ASVs left :)
+
+# summarize taxonomy, %ASVs assigned
+taxa <- tail(colnames(OTUtable))
+assigned <- c()
+totASVs <- nrow(OTUtable)
+for (i in 1:length(taxa)){
+  taxon <- taxa[i]
+  as <- sum(!is.na(select(OTUtable,taxon)))/totASVs
+  assigned <- c(assigned,as)
+}
+result_stool <- data.frame(taxon = taxa, 
+                           assigned_ASV = assigned * 100,
+                           sample.type = "fecal")
+
+# Summarize read depth
+depth_stool <- data.frame(
+  sample = colnames(OTUtable %>% dplyr::select(-colnames(tax))),
+  sequencing_depth = colSums(OTUtable %>% dplyr::select(-colnames(tax)))
+) %>%
+  dplyr::mutate(sample.type = "Stool")
+
+## Saliva samples
+
+# read in phyloseq object provided by JMF
+ASV <- readRDS("~/Dropbox/eca/tirolgesund/5-exploratory/5-microbiome/1-preprocessed-data/0-DADA2-output_JMF/JMF-2301-08_16S_refined_phyloseq.Rds")
+
+#prep pheno file with meta-data
+pheno2 <- pheno %>% 
+  filter(jmf_sample_id %in% c(ASV@sam_data@row.names)) %>% #get stool samples only
+  filter(sampletype != "Sequencing QC") %>% #remove samples for which label is missing
+  filter(visitId %in% c("M0","M2","M4","M6")) %>% #remove M12
+  filter(interventionId %in% c("I","K")) %>% # Intermittent fasting only
+   group_by(subjectId) %>%
+  filter(all(c("M0","M2","M4","M6") %in% visitId)) %>%
+  ungroup() %>%
+  dplyr::rename(group=jmf_sample_id) %>%
+  dplyr::relocate(group)
+
+# add more metadata
+load("~/Dropbox/tg-data-prep/processed/pheno/general/data.Rdata")
+data <- data %>% filter(subjectId %in% c(pheno2$subjectId)) %>% select(-c(interventionId,))
+pheno2 <- full_join(pheno2, data, by = "subjectId")
+
+# prep OTU table with taxonomic assignment
+OTUtable <- as.data.frame(ASV@otu_table) %>% 
+  select(all_of(pheno2$group)) %>% #keep only samples in relevant subset
+  rownames_to_column(var="ASV") 
+tax <- as.data.frame(ASV@tax_table) %>% dplyr::rename(Kingdom=Domain) %>% rownames_to_column(var="ASV")
+OTUtable <- full_join(OTUtable,tax, by = "ASV")
+
+# remove ASVs with no read count
+OTUtable <- OTUtable %>% 
+  mutate(sum_count = rowSums(select(., starts_with("JMF")))) %>%
+  filter(sum_count > 0) %>%
+  select(-sum_count) #6984 ASVs left :)
+
+# summarize taxonomy, %ASVs assigned
+taxa <- tail(colnames(OTUtable))
+assigned <- c()
+totASVs <- nrow(OTUtable)
+for (i in 1:length(taxa)){
+  taxon <- taxa[i]
+  as <- sum(!is.na(select(OTUtable,taxon)))/totASVs
+  assigned <- c(assigned,as)
+}
+result_saliva <- data.frame(taxon = taxa, 
+                            assigned_ASV = assigned * 100,
+                            sample.type = "saliva")
+
+# Summarize read depth
+depth_saliva <- data.frame(
+  sample = colnames(OTUtable %>% dplyr::select(-colnames(tax))),
+  sequencing_depth = colSums(OTUtable %>% dplyr::select(-colnames(tax)))
+) %>%
+  dplyr::mutate(sample.type = "Saliva")
+
+results <- full_join(result_stool,result_saliva)
+
+```
 
 ```{r count_tables}
 
@@ -123,7 +254,206 @@ pheno_stool <- metadat %>%
 
 ```
 
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+
+tax_lab <- c("OTU", colnames(tax)[-1])
+
+#Curated assignemnts #-----
+
+OTUtable <- ASVtable_stool
+
+# length(unique(OTUtable$OTU))
+# 548
+# length(unique(OTUtable$Family))
+# 51
+
+# Set genus and speies to NA; set "_unk" to NA
+OTUtable$Genus <- NA
+OTUtable$Species <- NA
+OTUtable <- OTUtable %>%
+  mutate(
+    across(
+      where(is.character),
+      ~ if_else(str_detect(.x, "_unk"), NA, .x)
+    )
+  )
+
+# summarize taxonomy, %ASVs assigned
+taxa <- tail(colnames(OTUtable))
+assigned <- c()
+totASVs <- nrow(OTUtable)
+for (i in 1:length(taxa)){
+  taxon <- taxa[i]
+  as <- sum(!is.na(select(OTUtable,taxon)))/totASVs
+  assigned <- c(assigned,as)
+}
+result2_stool <- data.frame(taxon = taxa, 
+                           assigned_ASV = assigned * 100,
+                           sample.type = "fecal")
+
+## Saliva samples
+
+OTUtable <- ASVtable_saliva
+
+# length(unique(OTUtable$OTU))
+# 548
+# length(unique(OTUtable$Family))
+# 51
+
+# Set genus and speies to NA
+OTUtable$Genus <- NA
+OTUtable$Species <- NA
+OTUtable <- OTUtable %>%
+  mutate(
+    across(
+      where(is.character),
+      ~ if_else(str_detect(.x, "_unk"), NA, .x)
+    )
+  )
+
+# summarize taxonomy, %ASVs assigned
+taxa <- tail(colnames(OTUtable))
+assigned <- c()
+totASVs <- nrow(OTUtable)
+for (i in 1:length(taxa)){
+  taxon <- taxa[i]
+  as <- sum(!is.na(select(OTUtable,taxon)))/totASVs
+  assigned <- c(assigned,as)
+}
+result2_saliva <- data.frame(taxon = taxa, 
+                            assigned_ASV = assigned * 100,
+                            sample.type = "saliva")
+
+results2 <- full_join(result2_stool,result2_saliva)
+
+```
+
+```{r ext_rev_10a, eval = F}
+
+results$taxon <- factor(results$taxon, levels=rev(taxa))
+
+plot1 <- results %>% 
+  ggplot(aes(x = taxon,
+             y = assigned_ASV,
+             fill = sample.type)) +
+  geom_bar(stat = "identity",
+           position = "dodge") + 
+  labs(y="% assigned ASVs",fill="", x="") +
+  scale_fill_manual(values=c(cols[5],cols[7])) + 
+  scale_y_reverse() +
+  coord_flip() +
+  theme(plot.margin = margin(0, 0, 0, 0, "pt"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line.x = element_line(colour = "black")) +
+  ggtitle("SINA classifier")
+
+results2$taxon <- factor(results2$taxon, levels=rev(taxa))
+
+plot2 <- results2 %>% 
+  ggplot(aes(x = taxon,
+             y = assigned_ASV,
+             fill = sample.type)) +
+  geom_bar(stat = "identity",
+           position = "dodge") + 
+  labs(y="% assigned ASVs",fill="", x="") +
+  scale_fill_manual(values=c(cols[5],cols[7])) + 
+  coord_flip() +
+  theme(plot.margin = margin(0, 0, 0, 0, "pt"),
+        axis.text.y= element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.ticks.length.y = unit(0, "pt"),
+        axis.line.y = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line.x = element_line(colour = "black"))  +
+  ggtitle("Curated")
+
+plot <- plot1 + plot2 + plot_layout(guides="collect") + plot_layout(guides = "collect")&
+  theme(legend.position = "right")
+
+plot
+
+cairo_pdf("out/pdf/ext_rev_10a.pdf", width = 4.5, height = 3.5)
+print(plot)
+dev.off()
+
+```
+
+# Sequencing depth
+
+```{r ext_rev_10b, eval = F}
+
+depth <- bind_rows(depth_stool, depth_saliva)
+
+p <- ggplot(depth, aes(x = sample.type, y = sequencing_depth)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.1, alpha = 0.3) +
+  scale_y_log10() +
+  theme_classic() +
+  xlab("") +
+  ylab("Sequencing depth (reads)")
+
+# depth %>%
+#   group_by(sample.type) %>%
+#   summarise(
+#     p5 = quantile(sequencing_depth, 0.05),
+#     p95 = quantile(sequencing_depth, 0.95),
+#     fold_change = p95/p5
+#   )
+
+cairo_pdf("out/pdf/ext_rev_10b.pdf", width = 4, height = 3.5)
+print(p)
+dev.off()
+
+  
+```
+
+
 # Overview detected taxa
+
+## Phylum
+
+a) saliva
+
+```{r}
+
+p <- plot_taxa_heatmap(ASVtable_saliva, pheno_saliva, "Phylum", NULL, 0, "SM", cols)
+
+p
+
+```
+
+```{r ext_rev_10c, eval = F}
+
+cairo_pdf("out/pdf/ext_rev_10c.pdf", width = 5.5, height = 3)
+print(p)
+dev.off()
+
+```
+
+b) stool
+
+```{r }
+
+p <- plot_taxa_heatmap(ASVtable_stool, pheno_stool, "Phylum", NULL, 0, "FM", cols)
+
+p
+
+```
+
+```{r ext_rev_10d, eval = F}
+
+cairo_pdf("out/pdf/ext_rev_10d.pdf", width = 5.5, height = 3)
+print(p)
+dev.off()
+
+```
+
 
 ## Families
 
