@@ -653,6 +653,11 @@ colnames(df_raw_wide) <- gsub("Saliva.microbiome..families_", "", colnames(df_ra
 
 out1 <- pc_microbiomes(df_raw_wide,features,"hellinger",3,"Saliva",cols[2])
 
+vegan_trans <- "hellinger"
+n_pc <-3 
+sampletype <- "Saliva"
+label_col <- cols[2]
+
 # stool
 exp <- c("Stool microbiome: families")
 df_raw_wide <- as.data.frame(wideFormat(data[,,exp],
@@ -666,6 +671,54 @@ out2 <- pc_microbiomes(df_raw_wide,features,"hellinger",3,"Stool","#964B00")
 p <- out1[[2]] + ggtitle("Saliva") + out2[[2]] + ggtitle("Stool") + plot_layout(guides = "collect")
 
 p
+
+# PERMANOVA
+# > out1[[4]]
+# Permutation test for adonis under reduced model
+# Marginal effects of terms
+# Blocks:  strata 
+# Permutation: free
+# Number of permutations: 999
+# 
+# vegan::adonis2(formula = dat ~ interventionId + visitId + compliance + mpstatrs + age_at_consent + bmi_at_consent + smoking_ever + etohu_curr + diet + preg_ever, data = meta_dat, permutations = 999, method = "euclidean", by = "margin", strata = meta_dat$subjectId)
+#                 Df SumOfSqs      R2      F Pr(>F)    
+# interventionId   1    0.097 0.00294 1.3352  0.747    
+# visitId          3    0.676 0.02049 3.1047  0.001 ***
+# compliance       2    0.326 0.00988 2.2464  1.000    
+# mpstatrs         1    0.437 0.01326 6.0277  0.001 ***
+# age_at_consent   1    0.107 0.00324 1.4710  0.001 ***
+# bmi_at_consent   1    0.144 0.00435 1.9788  0.115    
+# smoking_ever     2    0.349 0.01059 2.4077  0.001 ***
+# etohu_curr       6    0.730 0.02211 1.6755  0.001 ***
+# diet             2    0.239 0.00724 1.6461  0.002 ** 
+# preg_ever        2    0.321 0.00972 2.2093  0.001 ***
+# Residual       401   29.102 0.88211                  
+# Total          423   32.991 1.00000                  
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# > out2[[4]]
+# Permutation test for adonis under reduced model
+# Marginal effects of terms
+# Blocks:  strata 
+# Permutation: free
+# Number of permutations: 999
+# 
+# vegan::adonis2(formula = dat ~ interventionId + visitId + compliance + mpstatrs + age_at_consent + bmi_at_consent + smoking_ever + etohu_curr + diet + preg_ever, data = meta_dat, permutations = 999, method = "euclidean", by = "margin", strata = meta_dat$subjectId)
+#                 Df SumOfSqs      R2      F Pr(>F)  
+# interventionId   1    0.451 0.00550 2.3919  0.065 .
+# visitId          3    0.481 0.00586 0.8495  0.104  
+# compliance       2    0.832 0.01013 2.2048  0.599  
+# mpstatrs         1    0.306 0.00373 1.6236  0.157  
+# age_at_consent   1    0.268 0.00326 1.4208  0.959  
+# bmi_at_consent   1    0.776 0.00945 4.1139  0.490  
+# smoking_ever     2    0.847 0.01032 2.2459  0.947  
+# etohu_curr       6    2.278 0.02775 2.0132  0.112  
+# diet             2    0.534 0.00651 1.4164  0.095 .
+# preg_ever        2    0.420 0.00512 1.1139  0.840  
+# Residual       395   74.506 0.90759                
+# Total          417   82.092 1.00000                
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 ```
 
@@ -692,6 +745,71 @@ print(p)
 dev.off()
 
 ```
+
+## Saliva
+
+Intermittent fasting impacts on the saliva microbiome?: <br>
+  
+  Overall results Permanova (9999 permutations): <br>
+  
+* Significant difference between M0 samples and different time points intermittent fasting
+
+Posteriori pairwise testing M2, M4, M6: <br> 
+  
+* Less difference between M2, M4, M6 samples from ex-smokers and the control group,
+than between M2, M4, M6 samples from smokers and ex-smokers or 
+than between M2, M4, M6 samples between smokers and the control group (adjusted p-value < 0.05)
+
+
+```{r}
+
+# table only Aitchison
+
+d <- amp_load(otutable=ASVtable_saliva_extend,
+              metadata=pheno_saliva_extend)
+
+table1 <- summarize_permanova_aitchison(d)
+
+
+```
+
+
+* main plot:
+  
+```{r}
+
+d0 <- amp_filter_samples(d,visitId %in% c("Never smoker (control)","M0"))
+d6 <- amp_filter_samples(d,visitId %in% c("Never smoker (control)","M6"))
+
+plotsM0 <- plotPcoa(d0, "M0", "Aitchison", "group", "", NULL, "Saliva - Aitchison distance \n control vs M0") 
+plotsM0[[1]]<- plotsM0[[1]] + theme(legend.position = "bottom", legend.justification = "top", title = element_text(size = 9))
+plotsM6 <- plotPcoa(d6, "M6", "Aitchison", "group", "", NULL, "  \n control vs M6") 
+plotsM6[[1]]<- plotsM6[[1]] + theme(legend.position = "bottom", legend.justification = "top", title = element_text(size = 9))
+
+p <- plotsM0[[1]] + plotsM6[[1]]
+p
+
+```
+
+```{r main_5a, eval = F}
+
+cairo_pdf("out/pdf/5a.pdf", width = 4.5, height = 3.8)
+print(p)
+dev.off()
+
+```
+
+```{r sourcedata.pcoa}
+out1 <- plotsM0[[1]]$data |> dplyr::mutate(plot = 'control vs M0')
+out2 <- plotsM6[[1]]$data |> dplyr::mutate(plot = 'control vs M6')
+
+
+out <- rbind(out1, out2)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5a.txt')
+```
+
 
 
 # Alpha-diversity
