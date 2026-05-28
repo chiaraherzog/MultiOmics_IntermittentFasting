@@ -7,6 +7,7 @@ plotAlpha <- function(dat, rarmin, category){
   require(ampvis2)
   require(ggpubr)
   require(patchwork)
+  require(rstatix)
   
   alphadiversity = amp_alphadiv(dat, measure = c("shannon", "simpson","observed","invsimpson"), rarefy = rarmin, richness = TRUE)
   
@@ -61,6 +62,25 @@ plotAlpha <- function(dat, rarmin, category){
   #plot = plot1 + plot2 + plot_annotation(title = category)
   plot = plot1 + plot2
   
-  return(plot)
+  # Get stats
+  stats_chao1 <- out %>%
+    filter(index == "Chao1") %>%
+    group_by(visitId) %>%
+    summarise(
+      median = median(score, na.rm = TRUE),
+      mean = mean(score, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  stats_shannon <- out %>%
+    filter(index == "Shannon") %>%
+    group_by(visitId) %>%
+    summarise(
+      median = median(score, na.rm = TRUE),
+      mean = mean(score, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  return(list(plot, stats_chao1, stats_shannon))
   
 }

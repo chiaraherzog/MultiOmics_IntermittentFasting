@@ -831,9 +831,12 @@ d2 <- amp_filter_samples(d,
                          normalise = FALSE)
 n <- d2$metadata %>% pull(subjectId) %>% unique() %>% length()
 
-plota <- plotAlpha(d2,dmin, paste0("Saliva, high compliance (n=",n, ")"))
+plota <- plotAlpha(d2,dmin, paste0("Saliva, high compliance (n=",n, ")"))[[1]]
 
 plota
+
+# Report Chao1
+#plotAlpha(d2,dmin, paste0("Saliva, high compliance (n=",n, ")"))[[2]]
 
 # b - stool 
 
@@ -846,9 +849,12 @@ d2 <- amp_filter_samples(d,
                          normalise = FALSE)
 n <- d2$metadata %>% pull(subjectId) %>% unique() %>% length()
 
-plotb <- plotAlpha(d2,dmin, paste0("Stool, high compliance (n=",n, ")"))
+plotb <- plotAlpha(d2,dmin, paste0("Stool, high compliance (n=",n, ")"))[[1]]
 
 plotb
+
+# Report Shannon
+plotAlpha(d2,dmin, paste0("Stool, high compliance (n=",n, ")"))[[3]]
 
 ```
 
