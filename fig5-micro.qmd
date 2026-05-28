@@ -92,6 +92,7 @@ source("src/FBratio.R")
 source("src/plot_lmm_heatmap_fragmented_v3_microbiome.R")
 source("src/scan_selection_microbfunc_heatmap_v2.R")
 source("src/scan_selection_microbfunc_heatmap_v3.R")
+source("src/mean_rel_abund_visit.R")
 
 ```
 
@@ -1133,6 +1134,17 @@ plot <- plot_lmm_heatmap_frag_v3(exp = "Saliva microbiome: families",
                       cluster = "cluster")
 
 plot
+
+# check model values
+check <- out_lmm_1$'Minimal model' %>% filter(x %in% c("Saliva microbiome: families_Leptotrichiaceae", "Saliva microbiome: families_Absconditabacteriales_unk1", "Saliva microbiome: families_Porphyromonadaceae", "Saliva microbiome: families_Veillonellaceae"))
+
+# check relative abundance
+check <- mean_rel_abund_visit(ASVtable_saliva, pheno_saliva, agg = "Family") %>%
+  dplyr::filter(visitId == "M0") %>%
+  dplyr::filter(tax %in% c("Leptotrichiaceae", "Absconditabacteriales_unk1", "Porphyromonadaceae", "Veillonellaceae"))
+
+
+
 ```
 
 ```{r main_5c, eval=F}
@@ -1208,6 +1220,16 @@ plot <- plot_lmm_heatmap_frag_v3(exp = "Stool microbiome: families",
                       cluster = "cluster")
 
 plot
+
+# check model values
+check <- out_lmm_1$'Minimal model' %>% filter(x %in% c("Stool microbiome: families_Clostridiaceae", "Stool microbiome: families_Peptostreptococcaceae"))
+
+# check relative abundance
+check <- mean_rel_abund_visit(ASVtable_stool, pheno_stool, agg = "Family") %>%
+  dplyr::filter(visitId == "M0") %>%
+  dplyr::filter(tax %in% c("Clostridiaceae", "Peptostreptococcaceae", "Akkermansiaceae"))
+
+
 ```
 
 ```{r main_5f, eval=F}
