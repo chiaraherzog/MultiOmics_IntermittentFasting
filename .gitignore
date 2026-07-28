@@ -33,3 +33,5 @@ out/*
 
 !src/*
 
+
+**/*.quarto_ipynb
