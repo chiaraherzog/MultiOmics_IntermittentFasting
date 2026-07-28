@@ -74,35 +74,34 @@ source(here("src/longitudinal.R"))
 ```
 
 ```{r loadlmm}
-#load(here("out/out_lmm_factor.Rdata"))
-load("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/out_lmm_factor.Rdata")
+load(here("out/out_lmm_factor.Rdata"))
+
 ```
 
 ```{r cerv.load}
-#path = here("data/data_raw.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+path = here("data/data_raw.Rdata")
 df_raw_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
-#path = here("data/data_baseline_change.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+path = here("data/data_baseline_change.Rdata")
+
 df_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
-#path = here("data/data_normalized.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+path = here("data/data_normalized.Rdata")
+
 df_scaled_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent", "bmi_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
-#path = here("data/data_normalized_baseline.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+path = here("data/data_normalized_baseline.Rdata")
+
 df_scaled_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_cervical", "age_at_consent"))) |> 
@@ -110,30 +109,26 @@ df_scaled_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite met
 ```
 
 ```{r buc.load}
-#path = here("data/data_raw.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+path = here("data/data_raw.Rdata")
 df_raw_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
-#path = here("data/data_baseline_change.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+path = here("data/data_baseline_change.Rdata")
 df_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
-#path = here("data/data_normalized.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+path = here("data/data_normalized.Rdata")
 df_scaled_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
-#path = here("data/data_normalized_baseline.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+path = here("data/data_normalized_baseline.Rdata")
 df_scaled_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_buccal", "age_at_consent"))) |> 
@@ -141,30 +136,26 @@ df_scaled_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite m
 ```
 
 ```{r blood.load}
-#path = here("data/data_raw.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+path = here("data/data_raw.Rdata")
 df_raw_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T) 
 
-#path = here("data/data_baseline_change.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+path = here("data/data_baseline_change.Rdata")
 df_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T)
 
 
-#path = here("data/data_normalized.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+path = here("data/data_normalized.Rdata")
 df_scaled_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent", "bmi_at_consent"))) |> 
    filter_if(age_norm = T, type_norm = T) 
 
-#path = here("data/data_normalized_baseline.Rdata")
-path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+path = here("data/data_normalized_baseline.Rdata")
 df_scaled_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
                                         colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
                                                     "basename_blood", "age_at_consent"))) |> 
@@ -377,8 +368,7 @@ colour_assays <- list(
   )
 )
 
-#load(here("out/out_lmm_factor.Rdata"))
-load("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/out_lmm_factor.Rdata")
+load(here("out/out_lmm_factor.Rdata"))
 
 indices <- readxl::read_xlsx(here("src/indices_info_completed.xlsx"))
 # table(indices$Outcome_cat)
@@ -447,8 +437,7 @@ p <- draw(plots$cervical$plot + plots$buccal$plot + plots$blood$plot)
 ```
 
 ```{r print.sharedheatmap, eval = F}
-#cairo_pdf(here("out/pdf/3c_revised2.pdf"), width = 9.5, height = 4.75)
-cairo_pdf("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/pdf/3c_revised2.pdf", width = 9.5, height = 4.75)
+cairo_pdf(here("out/pdf/3c_revised2.pdf"), width = 9.5, height = 4.75)
 print(p)
 dev.off()
 ```
