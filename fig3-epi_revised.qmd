@@ -1,0 +1,756 @@
+---
+title: "Epigenetic data (F3, ED6)"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+
+::: {.panel-tabset}
+
+# Figures
+
+::: {.panel-tabset}
+
+## Main figure 3
+
+![](figures-png/figure3-epigenetic.png)
+
+## Extended Data figure 6
+
+![](figures-png/e5.png)
+
+:::
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+```{r libs}
+library(here)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ggtext)
+library(ggnewscale)
+library(broom)
+library(ComplexHeatmap)
+library(ggh4x)
+library(MultiAssayExperiment)
+library(RColorBrewer)
+library(viridis)
+
+# correlation
+library(corrr)
+library(ggraph)
+```
+
+```{r colors}
+cols <- c("#1b69a1", "#48a0af", "#71b5a9", "#ec6669", "#f39668", "#bd647d", "#832c9b", "#5f70a8")
+```
+
+```{r here}
+here::i_am('fig3-epi.qmd')
+```
+
+```{r functions}
+source(here("src/filter_if.R"))
+source(here("src/plot_lmm_heatmap_v5.R"))
+
+source(here("src/plot_tissue_comparison.R"))
+
+source(here("src/paired_longitudinal_compliance.R"))
+# source(here("src/paired_intervention_compliance.R"))
+
+# source(here("src/paired_change_compliance.R"))
+# source(here("src/comparison_plots.R"))
+
+# source(here("src/comparison_change_int.R"))
+source(here("src/longitudinal.R"))
+```
+
+```{r loadlmm}
+#load(here("out/out_lmm_factor.Rdata"))
+load("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/out_lmm_factor.Rdata")
+```
+
+```{r cerv.load}
+#path = here("data/data_raw.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+df_raw_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_cervical", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+#path = here("data/data_baseline_change.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+df_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_cervical", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+
+#path = here("data/data_normalized.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+df_scaled_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_cervical", "age_at_consent", "bmi_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+#path = here("data/data_normalized_baseline.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+df_scaled_change_cerv <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: cervical"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_cervical", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+```
+
+```{r buc.load}
+#path = here("data/data_raw.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+df_raw_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_buccal", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+#path = here("data/data_baseline_change.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+df_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_buccal", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+
+#path = here("data/data_normalized.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+df_scaled_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_buccal", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+#path = here("data/data_normalized_baseline.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+df_scaled_change_buccal <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: buccal"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_buccal", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+```
+
+```{r blood.load}
+#path = here("data/data_raw.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_raw.Rdata"
+df_raw_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_blood", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T) 
+
+#path = here("data/data_baseline_change.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_baseline_change.Rdata"
+df_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_blood", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+
+
+#path = here("data/data_normalized.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized.Rdata"
+df_scaled_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_blood", "age_at_consent", "bmi_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T) 
+
+#path = here("data/data_normalized_baseline.Rdata")
+path = "~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/data/data_normalized_baseline.Rdata"
+df_scaled_change_blood <- as.data.frame(longForm(get(load(path))[,,"Composite methylation scores: blood"],
+                                        colData = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate",
+                                                    "basename_blood", "age_at_consent"))) |> 
+   filter_if(age_norm = T, type_norm = T)
+```
+
+
+# Code
+
+## Main figure 3
+
+### a) PCA of epigenetic data
+
+To evaluate overall variability, we first load in the beta matrix. This step takes long so intermediate files are saved and plotted.
+
+```{r pca, eval = F}
+load(here("../../../../../data/tirolgesund/beta_merged.Rdata"))
+load(here("data/data_raw.Rdata"))
+
+features <-  c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")
+
+# Function to subset and get top variable CpGs
+topVarCpGs <- function(data, beta, tissue = c('buccal', 'cervical', 'blood'), top_sites = 0.05, vars = features){
+  
+  tmp <- wideFormat(data[,,grepl(paste0("Composite methylation scores: ", tissue), names(data@ExperimentList))],
+                   colDataCols =  c(vars, paste0("basename_", tissue))) |> 
+    as.data.frame() |>
+    dplyr::filter(interventionId != 'S')
+  
+  completecases <- tmp |>
+      dplyr::group_by(subjectId) |>
+      dplyr::count() |>
+      dplyr::filter(n == 4)
+  
+  tmp <- tmp |> 
+    dplyr::filter(subjectId %in% completecases$subjectId)
+
+  # Basenames
+  columns <- unique(tmp[[paste0("basename_", tissue)]])
+  columns <- columns[!is.na(columns)]
+  
+  # subset
+  beta <- beta_merged[,columns]
+
+  # sd
+  sd <- matrixStats::rowSds(beta)
+  names(sd) <- rownames(beta)
+  sd <- sd[order(sd, decreasing = T)]
+  sd_top <- sd[1:round(length(sd)*top_sites)]
+  beta_top <- beta[names(sd_top),]
+  
+  # pc
+  pc <- prcomp(t(beta_top), scale. = T, center = T)
+
+  # append info
+  dat <- cbind(tmp[match(rownames(pc$x), tmp[[paste0("basename_", tissue)]]),], 
+               pc$x[,1:10])
+  
+  return(list(dat = dat, 
+              pc = pc))
+}
+
+pc_blood <- topVarCpGs(data, beta_merged, 'blood', vars = features)
+colnames(pc_blood$dat) <- gsub("Composite.methylation.scores..blood_", "", colnames(pc_blood$dat))
+
+pc_buccal <- topVarCpGs(data, beta, 'buccal')
+colnames(pc_buccal$dat) <- gsub("Composite.methylation.scores..buccal_", "", colnames(pc_buccal$dat))
+
+pc_cervical <- topVarCpGs(data, beta, 'cervical')
+colnames(pc_cervical$dat) <- gsub("Composite.methylation.scores..cervical_", "", colnames(pc_cervical$dat))
+
+pcHeatmap <- function(pc_dat){
+  
+  pc_dat <- pc_dat |> 
+    dplyr::filter(!is.na(comprate)) |> 
+    dplyr::mutate(mpstatrs = gsub("[*]", "", mpstatrs)) |> 
+    dplyr::select(-any_of(c("intactcurr", "pattern", "comprate")))
+  
+  pcs <- pc_dat |> 
+    dplyr::select(PC1:PC10)
+  
+  tmp <- pc_dat |> 
+    dplyr::select(any_of(features), 'ic', 'hepidish_Neutro') |> 
+    dplyr::mutate_if(is.character, as.factor)
+
+  mat <- matrix(ncol = ncol(pcs),
+                nrow = ncol(tmp))
+  colnames(mat) <- colnames(pcs)
+  rownames(mat) <- colnames(tmp)
+  
+  for (i in colnames(mat)){
+    for (j in rownames(mat)){
+      
+      if(is.numeric(tmp[,j])){
+      mat[j,i] <- cor.test(pcs[,i], tmp[,j])$p.value
+      # pmat[j,i] <- cor.test(pcs[,i], tmp[,j])
+      } else {
+        mat[j,i] <- kruskal.test(pcs[,i], tmp[,j])$p.value
+      }
+
+    }
+  }
+  
+  return(mat)
+}
+
+pcHeatmap_blood <- pcHeatmap(pc_blood$dat)  
+pcHeatmap_buccal <- pcHeatmap(pc_buccal$dat)  
+pcHeatmap_cervical <- pcHeatmap(pc_cervical$dat)  
+
+combineHeatmaps <- function(pcHeatmap_cervical, pcHeatmap_buccal, pcHeatmap_blood){
+  
+  map <- cbind(pcHeatmap_cervical, pcHeatmap_buccal, pcHeatmap_blood)
+  groups <- rep(c("cervical", "buccal", "blood"), each = 10)
+  map <- apply(map, 2, function(t) ifelse(t < 0.05, t, NA))
+  
+  labs = c('interventionId', 'subjectId', 'visitId', 'time (linear)', 'compliance rate',
+           'menopausal status', 'age (at consent)', 'BMI (at consent)', 'smoking (ever)', 'current alcohol units/wk', 'dietary pattern', 'pregnancy (ever)', 'immune cell prop.','neutrophil prop.')
+           
+  p <- Heatmap(-log10(map),
+        row_labels = labs,
+             cluster_columns = F,
+             cluster_column_slices = F,
+             row_names_side = 'left',
+             cluster_rows = F,
+             column_split = c(rep(1, 10), rep(2, 10), rep(3, 10)),
+             column_title = NULL,
+             show_row_dend = F,
+             show_column_dend = F,
+             name = '-log10(p value)',
+             na_col = 'white',
+             col = circlize::colorRamp2(breaks = seq(40, 1.3, length.out = 5),
+                                        colors = rev(viridis::viridis(5)),
+                                        # colors = rev(color("batlow")(5)),
+                                        # colors = rev(cols[c(2,5,4, 6, 7)])
+             ),
+             row_names_gp = grid::gpar(fontsize = 9),
+             column_names_gp = grid::gpar(fontsize = 9),
+             border_gp = gpar(lwd = 0.5),
+             border = T,
+             top_annotation = HeatmapAnnotation(grp = anno_block(gp = gpar(fill = cols[c(6, 2, 1)],
+                                                                           lwd = 0.5),
+                                                                 labels = c("cervical sample", "buccal sample", "blood sample"),
+                                                                 labels_gp = gpar(col = "white",
+                                                                                  fontsize = 10,
+                                                                                  fontface = "bold"))
+             ))
+  
+  return(p)
+  }
+
+p <- combineHeatmaps(pcHeatmap_cervical, pcHeatmap_buccal, pcHeatmap_blood)
+save(p, file = here("out/pc-heatmap-epi.Rdata"))
+
+save(pc_blood, pc_buccal, pc_cervical,
+     file = here("out/pcs-epi.Rdata"))
+```
+
+```{r plot.pca, fig.width = 8, fig.height = 3}
+load(here("out/pc-heatmap-epi.Rdata"))
+load(here("out/pcs-epi.Rdata"))
+
+draw(p)
+```
+
+```{r print.pca, eval = F}
+cairo_pdf(here("out/pdf/3a.pdf"),
+          width = 7.5, height = 2.75)
+print(p)
+dev.off()
+```
+
+### b) ic changes across tissues
+
+We explore whether there are changes in major immune cell proportions over time.
+
+```{r iccomp, fig.height = 4.55, fig.height = 3.25}
+plot <- plot_tissue_comparison(dat_cerv = df_scaled_change_cerv,
+                       dat_buccal = df_scaled_change_buccal,
+                       dat_blood = df_scaled_change_blood,
+                       variable = 'ic',
+                       variable_blood = 'hepidish_Neutro',
+                       ylab = '∆ immune cell proportion*\nfrom baseline (scaled)',
+                       fdr = T)
+```
+
+```{r print.ic.changes, eval = F}
+cairo_pdf(here("out/pdf/3b.pdf"),
+          width = 4.55, height = 3.25)
+print(plot)
+dev.off()
+```
+
+### c) LME models (shared signatures)
+
+We are interested in exploring changes in major biomarkers across different tissues.
+
+Compare across all tissues, leave blank when not computed
+
+```{r sharedheatmap}
+colour_assays <- list(
+  assay = c(
+   # "Smoking biomarker"           = "#C94C4C",
+    "Cancer risk biomarker"       = "#7A5195",
+    "1st gen epigenetic clock"    = "#1b69a1",
+    "2nd gen epigenetic clock"    = "#48a0af",
+    "3rd gen epigenetic clock"    = "#f39668",
+    "Global methylation"          = "#bd647d",
+    "Cell composition"            = "#8C6D5A"
+  )
+)
+
+#load(here("out/out_lmm_factor.Rdata"))
+load("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/out_lmm_factor.Rdata")
+
+indices <- readxl::read_xlsx(here("src/indices_info_completed.xlsx"))
+# table(indices$Outcome_cat)
+
+# --- one row per label per tissue, keeping each sheet's own x -----------------
+sheets <- c(cervical = 1, buccal = 2, blood = 3)   # confirm with excel_sheets()
+
+vars_by_tissue <- purrr::imap_dfr(sheets, function(sheet, tissue) {
+  readxl::read_xlsx(here("src/indices.xlsx"), sheet = sheet) |>
+    dplyr::distinct(label, x) |>
+    dplyr::mutate(assay = tissue)
+}) |>
+  dplyr::filter(label %in% indices$label) |>
+  dplyr::left_join(dplyr::select(indices, label, Outcome_cat), by = "label")
+
+# --- the shared row universe -------------------------------------------------
+label_rows <- vars_by_tissue |>
+  dplyr::distinct(label, Outcome_cat) |>
+  dplyr::arrange(Outcome_cat, label)
+
+make_keep <- function(tissue) {
+  vars_by_tissue |>
+    dplyr::filter(assay == tissue) |>
+    dplyr::mutate(x = paste0(tissue, "_", x)) |>
+    dplyr::select(x, label) |>
+    dplyr::right_join(label_rows, by = "label") |>
+    dplyr::transmute(
+      x = dplyr::coalesce(x, paste0("__missing__", label)),
+      label,
+      assay = tissue,
+      assay2 = Outcome_cat
+    ) |>
+    dplyr::arrange(assay2, label)
+}
+
+# --- model output: no _adj stripping, x must match the sheets ----------------
+clean_lmm <- function(d) {
+  d |>
+    dplyr::filter(grepl("Composite", x)) |>
+    dplyr::mutate(x = gsub("Composite methylation scores: ", "", x))
+}
+
+time <- clean_lmm(out_lmm$`Minimal model`)
+comp <- clean_lmm(out_lmm$`Basic model with BMI`)
+
+# --- plots -------------------------------------------------------------------
+tissues <- names(sheets)
+
+plots <- purrr::map(tissues, function(tissue) {
+  keep <- make_keep(tissue)
+  plot_lmm_heatmap_v5(
+    lmm_data_time       = dplyr::left_join(keep, time, by = "x"),
+    lmm_data_compliance = dplyr::left_join(keep, comp, by = "x"),
+    relabel             = keep,
+    relabel_assay       = TRUE,
+    colour_assays       = colour_assays
+  )
+})
+
+# tissue = 'cervical'
+names(plots) <- tissues
+
+for (t in tissues[-1]) plots[[t]]$plot@left_annotation <- NULL
+
+p <- draw(plots$cervical$plot + plots$buccal$plot + plots$blood$plot)
+```
+
+```{r print.sharedheatmap, eval = F}
+#cairo_pdf(here("out/pdf/3c_revised2.pdf"), width = 9.5, height = 4.75)
+cairo_pdf("~/Dropbox/eca/tirolgesund/7-manuscripts/if1/1-repository/out/pdf/3c_revised2.pdf", width = 9.5, height = 4.75)
+print(p)
+dev.off()
+```
+
+```{r sourcedata.shared.heatmap}
+plots$buccal$full_df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/3c.buccal.txt')
+
+plots$cervical$full_df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/3c.cervical.txt')
+
+plots$blood$full_df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/3c.blood.txt')
+```
+
+
+### d) WID-qtBC cervical
+
+```{r qt.cerv, eval = F}
+qt <- longitudinal(df_change_cerv,
+             variable = 'index_mQTL_adj',
+             p = 'p.format',
+             ylab = '<b>∆ WID-qtBC</b> (<b style="color:#bd647d">cervical</b>)<br>(adjusted for age and ic)', fdr = T) & theme(aspect.ratio = NULL)
+```
+
+```{r printqtc.cerv, eval = F}
+cairo_pdf("out/pdf/3g.pdf", width = 2.5, height = 2.5)
+print(qt)
+dev.off()
+```
+
+### e) L1 Methylation (buccal)
+
+```{r line, eval = F}
+l1 <- longitudinal(df_change_buccal,
+             variable = 'globalMethylation_line1_adj',
+             p = 'p.format',
+             ylab = '<b>∆ Global L1 methylation</b> (<b style="color:#48a0af">buccal</b>)<br>(adjusted for age and ic)',
+             fdr = T) & theme(aspect.ratio = NULL)
+```
+
+```{r print.line, eval = F}
+cairo_pdf("out/pdf/3h.pdf", width = 2.5, height = 2.5)
+print(l1)
+dev.off()
+```
+
+### f) AgeAccelGrim (blood)
+
+```{r ageaccelgrimv2, eval = F}
+grimv2 <- longitudinal(df_change_blood,
+             variable = 'AgeAccelGrimV2',
+             p = 'p.format',
+             ylab = '<b>∆ AgeAccelGrim (V2)</b> (<b style="color:#1b69a1">blood</b>)<br>', fdr = T)
+
+```
+
+```{r print.ageaccelgrimv2, eval = F}
+grimv2 <- grimv2 & theme(aspect.ratio = NULL)
+cairo_pdf("out/pdf/3i.pdf", width = 2.5, height = 2.5)
+print(grimv2)
+dev.off()
+```
+
+## Extended Data figure 6
+
+### a, b) Supplementary PC plot - cervical
+
+```{r suppl.pca.plots}
+load(here("out/pcs-epi.Rdata"))
+
+sizepcdot = 3
+sizeicdot = 0.7
+
+# Cervical
+summ <- summary(pc_cervical$pc)
+
+lab_pc1 <- paste0('<b>PC1</b> (', round(summ$importance[2,1]*100,1), '% of variance)')
+lab_pc2 <- paste0('<b>PC2</b> (', round(summ$importance[2,2]*100,1), '% of variance)')
+
+ic_pc_cerv <- pc_cervical$dat |> 
+  ggplot(aes(x = PC1,
+             y = PC2)) +
+  geom_point(aes(colour = ic),
+             size = sizeicdot,
+             alpha = 0.6) +
+  scico::scale_colour_scico(palette = 'batlow') +
+  # scale_colour_viridis_c(option = 'H') +
+  ggnewscale::new_scale_color() +
+  stat_ellipse(aes(colour = visitId)) +
+  stat_ellipse(level = 0, geom = "point",
+               aes(colour = visitId),
+               size = sizepcdot,
+               shape = 17) +
+  scale_colour_manual(values = cols[c(2, 1, 4, 5)],
+                      name = 'Visit',
+                      aesthetics = c("colour", "fill"))  +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        axis.title.x = element_markdown(),
+        axis.title.y = element_markdown()) +
+  coord_cartesian(ylim = c(-150, 150)) +
+  labs(x = lab_pc1,
+       y = lab_pc2)
+
+scree_cerv <- as.data.frame(t(summ$importance)) |>
+  tibble::rownames_to_column('pc') |> dplyr::mutate(pc = factor(pc, levels = pc)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = pc,
+             y = `Proportion of Variance`)) +
+    geom_col(fill = cols[1]) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90,hjust = 0)) +
+  labs(y = "Proportion of variance (%)",
+       x = '')
+```
+
+### c) IC changes in cervical samples, by compliance
+
+```{r ic.cerv, eval = F}
+ext_ic <- paired_longitudinal_compliance(df_change_cerv,
+                               'ic',
+                               p = 'p.signif',
+                               ylab = '<b>∆ immune cell proportion (ic)</b><br>')
+```
+
+### d, e) Supplementary PC plot - buccal
+
+```{r pc.buccal}
+load(here("out/pcs-epi.Rdata"))
+
+sizepcdot = 3
+sizeicdot = 0.7
+
+# Buccal
+summ <- summary(pc_buccal$pc)
+
+lab_pc1 <- paste0('<b>PC1</b> (', round(summ$importance[2,1]*100,1), '% of variance)')
+lab_pc2 <- paste0('<b>PC2</b> (', round(summ$importance[2,2]*100,1), '% of variance)')
+
+ic_pc_buccal <- pc_buccal$dat |> 
+  ggplot(aes(x = PC1,
+             y = PC2)) +
+  geom_point(aes(colour = ic),
+             size = sizeicdot,
+             alpha = 0.6) +
+  scico::scale_colour_scico(palette = 'batlow') +
+  # scale_colour_viridis_c(option = 'H') +
+  ggnewscale::new_scale_color() +
+  stat_ellipse(aes(colour = visitId)) +
+  stat_ellipse(level = 0, geom = "point",
+               aes(colour = visitId),
+               size = sizepcdot,
+               shape = 17) +
+  scale_colour_manual(values = cols[c(2, 1, 4, 5)],
+                      name = 'Visit',
+                      aesthetics = c("colour", "fill"))  +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        axis.title.x = element_markdown(),
+        axis.title.y = element_markdown()) +
+  coord_cartesian(ylim = c(-150, 150)) +
+  labs(x = lab_pc1,
+       y = lab_pc2)
+
+scree_buccal <- as.data.frame(t(summ$importance)) |>
+  tibble::rownames_to_column('pc') |> dplyr::mutate(pc = factor(pc, levels = pc)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = pc,
+             y = `Proportion of Variance`)) +
+    geom_col(fill = cols[1]) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90,hjust = 0)) +
+  labs(y = "Proportion of variance (%)",
+       x = '')
+```
+
+### f) Buccal BC
+
+```{r}
+buccalbc <- paired_longitudinal_compliance(df_change_buccal,
+                               variable = "WID_buccal_BC_adj",
+                               ylab = "<b>∆ WID-buccal-BC</b><br>(adjusted for age and ic)", 
+                               p = 'p.signif')
+
+```
+
+### g) WID-general age
+
+```{r}
+buccalage <- paired_longitudinal_compliance(df_change_buccal,
+                               variable = "index_general_age_adj",
+                               ylab = "<b>∆ WID-general-clock</b><br>(adjusted for age and ic)", 
+                               p = 'p.signif')
+
+```
+
+### h, i) Supplementary PC plot - blood
+
+```{r pc.blood}
+load(here("out/pcs-epi.Rdata"))
+
+sizepcdot = 3
+sizeicdot = 0.7
+
+# Blood
+summ <- summary(pc_blood$pc)
+
+lab_pc1 <- paste0('<b>PC1</b> (', round(summ$importance[2,1]*100,1), '% of variance)')
+lab_pc2 <- paste0('<b>PC2</b> (', round(summ$importance[2,2]*100,1), '% of variance)')
+
+ic_pc_blood <- pc_blood$dat |> 
+  ggplot(aes(x = PC1,
+             y = PC2)) +
+  geom_point(aes(colour = hepidish_Neutro),
+             size = sizeicdot,
+             alpha = 0.6) +
+  scico::scale_colour_scico(palette = 'batlow',
+                            name = 'neutrophil\nproportion') +
+  # scale_colour_viridis_c(option = 'H') +
+  ggnewscale::new_scale_color() +
+  stat_ellipse(aes(colour = visitId)) +
+  stat_ellipse(level = 0, geom = "point",
+               aes(colour = visitId),
+               size = sizepcdot,
+               shape = 17) +
+  scale_colour_manual(values = cols[c(2, 1, 4, 5)],
+                      name = 'Visit',
+                      aesthetics = c("colour", "fill"))  +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        axis.title.x = element_markdown(),
+        axis.title.y = element_markdown()) +
+  coord_cartesian(ylim = c(-150, 150)) +
+  labs(x = lab_pc1,
+       y = lab_pc2)
+
+scree_blood <- as.data.frame(t(summ$importance)) |>
+  tibble::rownames_to_column('pc') |> dplyr::mutate(pc = factor(pc, levels = pc)) |> 
+  dplyr::slice(1:10) |> 
+  ggplot(aes(x = pc,
+             y = `Proportion of Variance`)) +
+    geom_col(fill = cols[1]) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90,hjust = 0)) +
+  labs(y = "Proportion of variance (%)",
+       x = '')
+```
+
+### j) AdaptAge
+
+```{r adapt, eval = F}
+adaptage <- paired_longitudinal_compliance(df_change_blood,
+                               'AdaptAge',
+                               ylab = '<b>∆ AdaptAge</b>',
+                               p = 'p.signif')
+```
+
+### k) DunedinPACE
+
+```{r}
+dunedinpace <- paired_longitudinal_compliance(df_change_blood,
+                               'DunedinPACE',
+                               ylab = '<b>∆ DunedinPACE</b>',
+                               p = 'p.signif')
+
+```
+
+### Assemble and print extended data figure
+
+
+```{r printext, fig.width = 12, fig.height=11, eval = F}
+# add subtitles
+scree_cerv <- scree_cerv + labs(subtitle = 'cervical samples')
+scree_buccal <- scree_buccal + labs(subtitle = 'buccal samples')
+scree_blood <- scree_blood + labs(subtitle = 'blood samples')
+
+design <- "
+AABBBCCC###
+DDEEEFFFGGG
+HHIIIJJJKKK"
+
+plot <- (scree_cerv + ic_pc_cerv + ext_ic +
+           scree_buccal + ic_pc_buccal + buccalbc + buccalage +
+           scree_blood + ic_pc_blood + adaptage + dunedinpace) +
+  plot_layout(design = design) +
+  plot_annotation(tag_levels = 'a') &
+  theme(aspect.ratio = NULL)
+
+cairo_pdf(here("figures-pdf/e5.pdf"),
+          width = 16,
+          height = 13)
+print(plot)
+dev.off()
+
+ggsave(filename = here("figures-png/e5.png"),
+       plot = plot,
+       width = 16,
+       height = 13,
+       units = 'in')
+```
+
+
+:::
+
