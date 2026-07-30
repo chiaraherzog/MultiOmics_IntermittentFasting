@@ -39,12 +39,12 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = F)
 ```{r libs}
 # if(!require('ampvis2')){remotes::install_github("kasperskytte/ampvis2")}
 
-# deal with Windows font issue
-if (Sys.info()["sysname"] == "Windows") {
-  library(extrafont)
-  font_import(pattern = "ariblk", prompt = FALSE)
-  loadfonts(device = "all")
-}
+# # deal with Windows font issue
+# if (Sys.info()["sysname"] == "Windows") {
+#   library(extrafont)
+#   font_import(pattern = "ariblk", prompt = FALSE)
+#   loadfonts(device = "all")
+# }
 
 suppressWarnings(suppressMessages({
   library(tidyverse)
@@ -572,78 +572,9 @@ res$matrix |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/s12f.txt')
 ```
 
-# PCA
+# ASV-level M0 feature association with age and menopauze
 
-## ASV-level
-
-* Combined plots (?Figure 5a)
-
-```{r }
-
-# Load data in raw format for PCA
-load("data/data_raw.Rdata")
-features <- c("interventionId", "subjectId", "visitId", "compliance", "mpstatrs", "age_at_consent", "bmi_at_consent", "smoking_ever", "etohu_curr", "diet", "preg_ever")
-
-# saliva
-exp <- c("Saliva microbiome: ASVs")
-df_raw_wide <- as.data.frame(wideFormat(data[,,exp],
-                                   colData = features)) |> 
-  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18"))
-colnames(df_raw_wide) <- gsub("Saliva.microbiome..ASVs_", "", colnames(df_raw_wide))
-
-
-out1 <- pc_microbiomes(df_raw_wide,features,"hellinger",3,"Saliva",cols[2])
-
-# stool
-exp <- c("Stool microbiome: ASVs")
-df_raw_wide <- as.data.frame(wideFormat(data[,,exp],
-                                   colData = features)) |> 
-  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18"))
-colnames(df_raw_wide) <- gsub("Stool.microbiome..ASVs_", "", colnames(df_raw_wide))
-
-
-out2 <- pc_microbiomes(df_raw_wide,features,"hellinger",3,"Stool","#964B00")
-
-p <- out1[[2]] + ggtitle("Saliva") + out2[[2]] + ggtitle("Stool") + plot_layout(guides = "collect")
-
-p
-
-```
-
-```{r, eval = F}
-
-cairo_pdf("out/pdf/5a.pdf", width = 7, height = 3.5)
-print(p)
-dev.off()
-
-
-```
-
-```{r }
-
-p <- out1[[3]] + out2[[3]] 
-
-p
-```
-
-
-```{r s13b, eval=F}
-cairo_pdf("out/pdf/5a.pdf", width = 3.75, height = 3)
-print(p)
-dev.off()
-
-```
-
-```{r sourcedata.5a}
-out1[[2]]$data |> dplyr::select(Groups, x, y) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
-                   file = 'srcdata/5a.txt')
-
-```
-
-
-### M0 feature association with age and menopauze
-
-#### Kendall
+## Kendall
 
 a) saliva (pval < 0.01)
 
@@ -675,13 +606,6 @@ p
 
 ```
 
-# ```{r ext_8c, eval=F}
-# cairo_pdf("out/pdf/ext8c.pdf", width = 6.5, height = 4.5)
-# print(p)
-# dev.off()
-# 
-# ```
-
 b) stool (pval < 0.01)
 
 ```{r}
@@ -709,14 +633,7 @@ p
 
 ```
 
-# ```{r ext_8d, eval=F}
-# cairo_pdf("out/pdf/ext8d.pdf", width = 6.5, height = 3.5)
-# print(p)
-# dev.off()
-# 
-# ```
-
-## family-level
+# Family-level PCA/PERMANOVA
 
 * Combined plots (Main Fig. 5a-b)
 
@@ -843,71 +760,6 @@ as.data.frame(out2[[3]]@matrix) |> tibble::rownames_to_column('variable') |> wri
                    file = 'srcdata/5b.stool.txt')
 ```
 
-## Saliva
-
-Intermittent fasting impacts on the saliva microbiome?: <br>
-  
-  Overall results Permanova (9999 permutations): <br>
-  
-* Significant difference between M0 samples and different time points intermittent fasting
-
-Posteriori pairwise testing M2, M4, M6: <br> 
-  
-* Less difference between M2, M4, M6 samples from ex-smokers and the control group,
-than between M2, M4, M6 samples from smokers and ex-smokers or 
-than between M2, M4, M6 samples between smokers and the control group (adjusted p-value < 0.05)
-
-
-```{r}
-
-# table only Aitchison
-
-d <- amp_load(otutable=ASVtable_saliva_extend,
-              metadata=pheno_saliva_extend)
-
-table1 <- summarize_permanova_aitchison(d)
-
-
-```
-
-
-* main plot:
-  
-```{r}
-
-d0 <- amp_filter_samples(d,visitId %in% c("Never smoker (control)","M0"))
-d6 <- amp_filter_samples(d,visitId %in% c("Never smoker (control)","M6"))
-
-plotsM0 <- plotPcoa(d0, "M0", "Aitchison", "group", "", NULL, "Saliva - Aitchison distance \n control vs M0") 
-plotsM0[[1]]<- plotsM0[[1]] + theme(legend.position = "bottom", legend.justification = "top", title = element_text(size = 9))
-plotsM6 <- plotPcoa(d6, "M6", "Aitchison", "group", "", NULL, "  \n control vs M6") 
-plotsM6[[1]]<- plotsM6[[1]] + theme(legend.position = "bottom", legend.justification = "top", title = element_text(size = 9))
-
-p <- plotsM0[[1]] + plotsM6[[1]]
-p
-
-```
-
-```{r main_5a, eval = F}
-
-cairo_pdf("out/pdf/5a.pdf", width = 4.5, height = 3.8)
-print(p)
-dev.off()
-
-```
-
-```{r sourcedata.pcoa}
-out1 <- plotsM0[[1]]$data |> dplyr::mutate(plot = 'control vs M0')
-out2 <- plotsM6[[1]]$data |> dplyr::mutate(plot = 'control vs M6')
-
-
-out <- rbind(out1, out2)
-
-out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
-                   file = 'srcdata/5a.txt')
-```
-
-
 
 # Alpha-diversity
 
@@ -955,7 +807,7 @@ plotAlpha(d2,dmin, paste0("Stool, high compliance (n=",n, ")"))[[3]]
 
 ```
 
-```{r ext_9ab, eval = F}
+```{r ext_13ab, eval = F}
 
 cairo_pdf("out/pdf/ext9a.pdf", width = 5.25, height = 3)
 print(plota)
@@ -964,6 +816,21 @@ dev.off()
 cairo_pdf("out/pdf/ext9b.pdf", width = 5.25, height = 3)
 print(plotb)
 dev.off()
+
+```
+
+```{r sourcedata.s13ab}
+
+plotAlpha(d2,dmin, paste0("Saliva, high compliance (n=",n, ")"))[[4]] %>%  
+  dplyr::rename(id = subjectId) %>%
+  mutate(id = as.integer(factor(id))) %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s13a.txt')
+plotAlpha(d2,dmin, paste0("Stool, high compliance (n=",n, ")"))[[4]] %>%  
+  dplyr::rename(id = subjectId) %>%
+  mutate(id = as.integer(factor(id))) %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s13b.txt')
 
 ```
 
@@ -1030,6 +897,17 @@ plot
 cairo_pdf("out/pdf/ext9d.pdf", width = 5.25, height = 3)
 print(plot)
 dev.off()
+
+```
+
+```{r sourcedata.s13d}
+
+datM0 %>%
+ tidyr::separate(primary, into = c("id", "visitId"), sep = "(?=M)") %>%
+  dplyr::select(-sampleId) %>%
+  mutate(id = as.integer(factor(id))) %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s13d.txt')
 
 ```
 
@@ -1119,6 +997,17 @@ print(plot)
 dev.off()
 
 ```
+
+```{r sourcedata.s13c}
+
+full_join(p1$data,p2$data) %>% 
+  dplyr::rename(id = subjectId) %>%
+  mutate(id = as.integer(factor(id))) %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s13c.txt')
+
+```
+
 
 
 # Differential abundance lmm
@@ -1251,11 +1140,26 @@ dev.off()
 
 ```
 
+```{r source.5c}
+plot_lmm_heatmap_frag_v3(exp = "Saliva microbiome: families", 
+                      lmm_data_time = out_lmm_1$`Minimal model`,
+                      lmm_data_compliance = out_lmm_1$`Basic model with BMI`,
+                      relabel = dat_relab,
+                      age_cor = F,
+                      bmi_cor = F,
+                      buccal_ic_cor = T,
+                      pval_threshold = 0.01,
+                      cluster = "cluster",
+                      return_data = T)$data %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5c.txt')
+```
+
 
 ```{r data_examples_saliva}
 load("data/data_baseline_change.Rdata")
 
-df <- longFormat(data[,,'Saliva microbiome: families'], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
+df <- longForm(data[,,'Saliva microbiome: families'], colDataCols = c("interventionId", "subjectId", "visitId", "time", "compliance", "comprate", "mpstatrs", "age_at_consent", "bmi_at_consent", "pattern", "smoking_ever", "etohu_curr", "diet", "preg_ever", "intactcurr")) |> 
   as.data.frame() |> 
   dplyr::filter(interventionId != 'S' & ! visitId %in% c("M12", "M18")) |> 
   dplyr::mutate(compliance = factor(compliance, levels = c("low", "medium", "high"))) |> 
@@ -1278,6 +1182,15 @@ print(p)
 dev.off()
 ```
 
+```{r sourcedata.5d}
+p$data |> dplyr::select(rowname, value, visitId, subjectId, compliance)|>
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> 
+  dplyr::arrange(id) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5d.txt')
+```
+
 ```{r main_5e}
 
 ylab <- '<b>∆ Absconditabacteriales_unk1</b><br>(saliva)'
@@ -1293,6 +1206,15 @@ cairo_pdf(here("out/pdf/5e.pdf"),
           width = 4, height = 2.5)
 print(p)
 dev.off()
+```
+
+```{r sourcedata.5e}
+p$data |> dplyr::select(rowname, value, visitId, subjectId, compliance)|>
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> 
+  dplyr::arrange(id) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5e.txt')
 ```
 
 #### stool
@@ -1334,6 +1256,21 @@ cairo_pdf("out/pdf/5f.pdf", width = 5, height = 2)
 print(plot)
 dev.off()
 
+```
+
+```{r source.5f}
+ plot_lmm_heatmap_frag_v3(exp = "Stool microbiome: families", 
+                      lmm_data_time = out_lmm_1$`Minimal model`,
+                      lmm_data_compliance = out_lmm_1$`Basic model with BMI`,
+                      relabel = dat_relab,
+                      age_cor = T,
+                      bmi_cor = T,
+                      buccal_ic_cor = F,
+                      pval_threshold = 0.01,
+                      cluster = "cluster",
+                      return_data = T)$data %>%
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5f.txt')
 ```
 
 
@@ -1385,6 +1322,14 @@ cairo_pdf("out/pdf/5g.pdf", width = 6, height = 4.75)
 print(p)
 dev.off()
 
+```
+
+```{r source.5g}
+out <- as.data.frame(p@matrix)
+out$var <- p@row_names_param$labels
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/5g.txt')
 ```
 
 ### CLR transformed data, MCT effect

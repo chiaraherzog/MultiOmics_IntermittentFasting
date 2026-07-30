@@ -30,7 +30,8 @@ plot_lmm_heatmap_frag_v3 <- function(exp,
                                   buccal_ic_cor = F,
                                   cluster = 'default',
                                   pval_threshold = 1,
-                                  pval_permutation_filter = TRUE){
+                                  pval_permutation_filter = TRUE,
+                                  return_data = FALSE){
   ## packages #----
   if(!require("gtools")){
     install.packages("gtools")
@@ -270,6 +271,27 @@ plot_lmm_heatmap_frag_v3 <- function(exp,
                border_gp = gpar(lwd = 0.5),
                border = T)  
   
-  return(p)
+  if(return_data){
+    source_data <- tmp[, c("x", names(tmp)[ind_est])]
+    
+    if(buccal_ic_cor){
+      source_data$buccal_ic_baseline <- tmp$cor
+    }
+    
+    if(age_cor){
+      source_data$corr_age <- tmp$corr_age
+    }
+    
+    if(bmi_cor){
+      source_data$corr_bmi <- tmp$corr_bmi
+    }
+    
+    return(list(
+      heatmap = p,
+      data = source_data
+    ))
+  } else {
+    return(p)
+  }
   
 }

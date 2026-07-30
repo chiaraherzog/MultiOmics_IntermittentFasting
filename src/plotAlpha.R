@@ -81,6 +81,6 @@ plotAlpha <- function(dat, rarmin, category){
       .groups = "drop"
     )
   
-  return(list(plot, stats_chao1, stats_shannon))
+  return(list(plot, stats_chao1, stats_shannon, out))
   
 }
