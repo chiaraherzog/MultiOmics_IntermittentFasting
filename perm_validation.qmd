@@ -440,6 +440,7 @@ ggsave(p,
        unit = 'in')
 ```
 
+<<<<<<< HEAD
 ```{sourcedata.p1.p2}
 p1$data %>%
   mutate(row_id = row_number()) %>%
@@ -453,4 +454,6 @@ p2$data %>%
   write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/s20_2.txt')
 ```
+=======
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 

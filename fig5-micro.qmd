@@ -18,11 +18,19 @@ format:
 
 ![](figures-png/figure5-microbiome_revised.png)
 
+<<<<<<< HEAD
 ## Supplementary Figure 11
 
 ![](figures-png/e9_microbiome.png)
 
 ## Supplementary Figure 12
+=======
+## Extended Data Figure 11
+
+![](figures-png/e9_microbiome.png)
+
+## Extended Data Figure 12
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 ![](figures-png/e10_microbiome.png)
 
@@ -330,7 +338,11 @@ results2 <- full_join(result2_stool,result2_saliva)
 
 ```
 
+<<<<<<< HEAD
 ```{r ext_rev_12a, eval = F}
+=======
+```{r ext_rev_10a, eval = F}
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 results$taxon <- factor(results$taxon, levels=rev(taxa))
 
@@ -379,12 +391,17 @@ plot <- plot1 + plot2 + plot_layout(guides="collect") + plot_layout(guides = "co
 
 plot
 
+<<<<<<< HEAD
 cairo_pdf("out/pdf/s12a.pdf", width = 4.5, height = 3.5)
+=======
+cairo_pdf("out/pdf/ext_rev_10a.pdf", width = 4.5, height = 3.5)
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 print(plot)
 dev.off()
 
 ```
 
+<<<<<<< HEAD
 ```{r sourcedata.s12a}
 rbind(plot1$data, plot2$data) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/s12a.txt')
@@ -394,6 +411,11 @@ rbind(plot1$data, plot2$data) |> write.table(quote = F, sep = "\t", row.names = 
 # Sequencing depth
 
 ```{r ext_rev_12b, eval = F}
+=======
+# Sequencing depth
+
+```{r ext_rev_10b, eval = F}
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 depth <- bind_rows(depth_stool, depth_saliva)
 
@@ -413,25 +435,36 @@ p <- ggplot(depth, aes(x = sample.type, y = sequencing_depth)) +
 #     fold_change = p95/p5
 #   )
 
+<<<<<<< HEAD
 cairo_pdf("out/pdf/ext_rev_12b.pdf", width = 4, height = 3.5)
+=======
+cairo_pdf("out/pdf/ext_rev_10b.pdf", width = 4, height = 3.5)
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 print(p)
 dev.off()
 
   
 ```
 
+<<<<<<< HEAD
 ```{r sourcedata.12b}
 p$data |> dplyr::select(sequencing_depth, sample.type) |> 
   write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/s12b.txt')
 ```
 
+=======
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 # Overview detected taxa
 
 ## Phylum
 
+<<<<<<< HEAD
 c) saliva
+=======
+a) saliva
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 ```{r}
 
@@ -441,15 +474,22 @@ p
 
 ```
 
+<<<<<<< HEAD
 
 ```{r ext_rev_12c, eval = F}
 
 cairo_pdf("out/pdf/ext_rev_12c.pdf", width = 5.5, height = 3)
+=======
+```{r ext_rev_10c, eval = F}
+
+cairo_pdf("out/pdf/ext_rev_10c.pdf", width = 5.5, height = 3)
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 print(p)
 dev.off()
 
 ```
 
+<<<<<<< HEAD
 ```{r sourcedata.phyla.saliva}
 
 anonymise_matrix <- function(mat, shuffle = TRUE) {
@@ -490,6 +530,9 @@ res$matrix |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
 ```
 
 d) stool
+=======
+b) stool
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 ```{r }
 
@@ -499,14 +542,21 @@ p
 
 ```
 
+<<<<<<< HEAD
 ```{r ext_rev_12d, eval = F}
 
 cairo_pdf("out/pdf/ext_rev_s12d.pdf", width = 5.5, height = 3)
+=======
+```{r ext_rev_10d, eval = F}
+
+cairo_pdf("out/pdf/ext_rev_10d.pdf", width = 5.5, height = 3)
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 print(p)
 dev.off()
 
 ```
 
+<<<<<<< HEAD
 ```{r sourcedata.12d}
 o <- p@matrix
 res <- anonymise_matrix(o)
@@ -515,6 +565,8 @@ res$matrix |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/s12d.txt')
 ```
 
+=======
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 
 ## Families
 
@@ -835,6 +887,7 @@ dev.off()
 
 ```
 
+<<<<<<< HEAD
 ```{r}
 as.data.frame(out1[[3]]@matrix) |> tibble::rownames_to_column('variable') |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
                    file = 'srcdata/5b.saliva.txt')
@@ -843,6 +896,8 @@ as.data.frame(out2[[3]]@matrix) |> tibble::rownames_to_column('variable') |> wri
                    file = 'srcdata/5b.stool.txt')
 ```
 
+=======
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
 ## Saliva
 
 Intermittent fasting impacts on the saliva microbiome?: <br>

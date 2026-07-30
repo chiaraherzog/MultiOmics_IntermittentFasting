@@ -33,6 +33,11 @@ out/*
 
 !src/*
 
+<<<<<<< HEAD
 srcdata/*
 src/indices_info_completed.xlsx
 
+=======
+
+**/*.quarto_ipynb
+>>>>>>> ccb3274a4298533190659db2ca2fb40870057cca
