@@ -1,5 +1,5 @@
 ---
-title: "Overview data (F1, ED1-3)"
+title: "Overview data (F1, Fig. S1-3)"
 format:
   html:
     toc: true
@@ -18,17 +18,17 @@ format:
 
 ![](figures-png/figure1-overview.png)
 
-## Extended Data Figure 1
+## Supplementary Figure 1
 
-![](figures-png/e1.png)
+![](figures-png/figure-s1.png)
 
-## Extended Data Figure 2
+## Supplementary Figure 2
 
-![](figures-png/UpSetPlot.png)
+![](figures-png/figure-s2.png)
 
-## Extended Data Figure 3
+## Supplementary Figure 3
 
-![](figures-png/e2.png)
+![](figures-png/figure-s3.png)
 
 :::
 
@@ -145,48 +145,19 @@ plot(apt)
 dev.off()
 ```
 
+```{r sourcedata.apt, eval = F}
+out <- appointments |>
+  dplyr::filter(interventionId != "S" & !visitId %in% c("M12", "M18")) |>
+  dplyr::select(subjectId, visitId, t, visitType, dropout) |>
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> 
+  dplyr::arrange(id)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/1a.txt')
+```
+
 ### b) Intervention compliance (longitudinal)
-
-```{r compliance.longitudinal, fig.width = 3, fig.height = 2, eval = F}
-load(here("data/data_raw.Rdata"))
-
-data <- colData(data) |> 
-  as.data.frame() 
-
-compliance1 <- data |> 
-  dplyr::filter(interventionId != "S" & ! visitId %in% c("M12", "M18")) |> 
-  dplyr::mutate(shape = ifelse(is.na(dropout_reason), "x", "dropout"),
-                color = ifelse(shape == 'dropout', 'dropout', ifelse(interventionId == 'I', 'I', "K"))) |> 
-  dplyr::filter(is.na(dropout_date)) |> 
-  dplyr::select(subjectId, interventionId, comprate, shape, color) |> 
-  dplyr::distinct() |> 
-  ggplot(aes(x = interventionId,
-             y = comprate)) +
-  geom_boxplot(aes(fill = interventionId),
-               alpha = 0.3) +
-  ggbeeswarm::geom_quasirandom(aes(colour = color,
-                                   shape = shape),
-                               size = 1.5,
-                               alpha = 0.8) +
-  theme_bw() +
-  scale_colour_manual(values = cols[c(3, 7)],
-                      aesthetics = c("colour", "fill")) +
-  # scale_shape_manual(values = c(4, 19)) +
-  theme(legend.position = 'none',
-        axis.title.y = element_markdown()) +
-  labs(x = '',
-       y = '<b>Compliance rate (%)</b><br>overall')
-```
-
-```{r print.compliance.longitudinal, eval = F}
-cairo_pdf(here("out/pdf/1b.pdf"),
-          width = 2,
-          height = 2)
-plot(compliance1)
-dev.off()
-```
-
-### c) Intervention compliance (overall)
 
 ```{r compliance.overall, eval = F}
 load(here("data/data_raw.Rdata"))
@@ -194,7 +165,7 @@ load(here("data/data_raw.Rdata"))
 data <- colData(data) |> 
   as.data.frame() 
 
-compliance2 <- data |> 
+compliance2_df <- data |> 
   dplyr::filter(interventionId != "S" & ! visitId %in% c("M12", "M18") & visitId != "M0") |>
   dplyr::select(subjectId, interventionId, comprate_longitudinal, visitId) |> 
   dplyr::distinct() |> 
@@ -212,6 +183,9 @@ compliance2 <- data |>
                       values_to = 'shape') |> 
   dplyr::mutate(visit = gsub("shape_", "", visit)) |>  
   dplyr::select(-visit) |> 
+  dplyr::distinct()
+
+compliance2 <- compliance2_df |> 
   ggplot(aes(x = visitId,
              y = comprate_longitudinal,
              colour = interventionId)) +
@@ -233,10 +207,63 @@ compliance2 <- data |>
 ```
 
 ```{r print.compliance.overall, eval = F}
-cairo_pdf(here("out/pdf/1c.pdf"),
+cairo_pdf(here("out/pdf/1b.pdf"),
           width = 3,
           height = 2)
 plot(compliance2)
+dev.off()
+```
+
+```{r sourcedata.compliance.long, eval = F}
+out <- compliance2_df |>
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-c(subjectId, shape)) |> 
+  dplyr::arrange(id)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/1b.txt')
+```
+
+### c) Intervention compliance (overall)
+
+```{r compliance.longitudinal, fig.width = 3, fig.height = 2, eval = F}
+load(here("data/data_raw.Rdata"))
+
+data <- colData(data) |> 
+  as.data.frame() 
+
+compliance1_df <- data |> 
+  dplyr::filter(interventionId != "S" & ! visitId %in% c("M12", "M18")) |> 
+  dplyr::mutate(shape = ifelse(is.na(dropout_reason), "x", "dropout"),
+                color = ifelse(shape == 'dropout', 'dropout', ifelse(interventionId == 'I', 'I', "K"))) |> 
+  dplyr::filter(is.na(dropout_date)) |> 
+  dplyr::select(subjectId, interventionId, comprate, shape, color) |> 
+  dplyr::distinct() 
+
+compliance1 <- compliance1_df |> 
+  ggplot(aes(x = interventionId,
+             y = comprate)) +
+  geom_boxplot(aes(fill = interventionId),
+               alpha = 0.3) +
+  ggbeeswarm::geom_quasirandom(aes(colour = color,
+                                   shape = shape),
+                               size = 1.5,
+                               alpha = 0.8) +
+  theme_bw() +
+  scale_colour_manual(values = cols[c(3, 7)],
+                      aesthetics = c("colour", "fill")) +
+  # scale_shape_manual(values = c(4, 19)) +
+  theme(legend.position = 'none',
+        axis.title.y = element_markdown()) +
+  labs(x = '',
+       y = '<b>Compliance rate (%)</b><br>overall')
+```
+
+```{r print.compliance.longitudinal, eval = F}
+cairo_pdf(here("out/pdf/1c.pdf"),
+          width = 2,
+          height = 2)
+plot(compliance1)
 dev.off()
 ```
 
@@ -299,6 +326,16 @@ plot(compcat)
 dev.off()
 ```
 
+
+```{r sourcedata.compliance.all, eval = F}
+out <- compliance1_df |>
+  dplyr::select(-c(subjectId, shape, color))
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/1cd.txt')
+```
+
+
 ### e) ICC
 
 ```{r icc, eval = F}
@@ -328,6 +365,13 @@ df.var.1 <- df.var |>
                 assay = ifelse(grepl("bloods|metabolome|clinical|composition", assay), paste0("<b>", assay, "</b>"),
                                paste0("<b>", gsub("[:]", "</b>:", assay)))) |> 
   dplyr::mutate(assay = forcats::fct_reorder(assay, icc, .na_rm = T)) 
+
+
+# In-text numbers (Jul 29)
+df.var.1 |> dplyr::group_by(assay) |> 
+  dplyr::summarise(med = median(icc,na.rm = T)) |> 
+  dplyr::arrange(dplyr::desc(med))
+
 
 iccplot <- df.var.1 |> 
   ggplot(aes(y = assay,
@@ -372,6 +416,11 @@ plot(iccplot)
 dev.off()
 ```
 
+```{r sourcedata.icc, eval = F}
+df.var.1 |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/1e.txt')
+```
+
 ### f) Top variable features, barplot
 
 ```{r topvar.bar, eval = F}
@@ -403,7 +452,7 @@ features <- df.var |>
   dplyr::slice(1:(n()*n)) |> 
   dplyr::select(featureid, assay)
 
-barplot <- features |> 
+features_df <- features |> 
   dplyr::group_by(assay) |> 
   dplyr::count() |> 
   dplyr::ungroup() |> 
@@ -411,7 +460,10 @@ barplot <- features |>
                  count = n,
                  prop = n/sum(n)*100) |> 
   dplyr::mutate(assay = factor(gsub("<b>|</b>", "", assay),
-                               levels = gsub("<b>|</b>", "", rev(levels)))) |>
+                               levels = gsub("<b>|</b>", "", rev(levels)))) 
+
+
+barplot <- features_df |>
   ggplot(aes(x = 1,
              fill = assay,
              y = prop)) +
@@ -445,6 +497,12 @@ cairo_pdf(here("out/pdf/1f.pdf"),
           height = 2.5)
 plot(barplot)
 dev.off()
+```
+
+```{r sourcdata.varfeatures}
+features_df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/1f.txt')
+
 ```
 
 ### g) Top variable features, PCA
@@ -544,8 +602,17 @@ plot(heatmap)
 dev.off()
 ```
 
+```{r sourcedata.pc_sig}
+grid_sig |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column('feature') |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                        file = 'srcdata/1g.txt')
 
-## Extended Data figure 1
+```
+
+
+## Supplementary figure 1
 
 ### a) Fasting pattern
 
@@ -610,10 +677,68 @@ plot(pattern)
 dev.off()
 ```
 
+```{r}
+tab |> dplyr::select(Var1, Var2, Freq, prop, n) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                        file = 'srcdata/s1a.txt')
+```
+
 ### b) Dropouts
 
 ```{r}
 # Code in tab1.qmd
+```
+
+### c) Supplement stop
+
+```{r supplstop, eval = F}
+tmp_df <- data |> 
+  dplyr::filter(interventionId == 'K' & ! visitId %in% c("M12", "M18") & is.na(dropout_date)) |>  
+  dplyr::select(subjectId,interventionId, compliance, supplement, supplement_stop) |> 
+  dplyr::distinct() |> 
+  dplyr::filter(supplement == 'no' & !is.na(supplement_stop)) |> 
+  dplyr::add_row(supplement_stop = "M5",
+                 subjectId = NA) |> 
+  dplyr::add_row(supplement_stop = "M6",
+                 subjectId = NA) 
+
+
+supplstop <- tmp_df |> 
+  ggplot(aes(x = supplement_stop))+
+  geom_segment(aes(x = min(supplement_stop),
+                   y = 0, xend = max(supplement_stop), yend = 0),
+                  arrow = arrow(length = unit(0.3, "cm")),
+               linewidth = 0.2) +
+  geom_dotplot(aes(fill = subjectId),
+               stackgroups = TRUE,stackdir = "centerwhole",
+               stackratio = 0.9) +
+  geom_text(aes(x = supplement_stop,
+                y = -0.25,
+                label = supplement_stop),
+            check_overlap = T) +
+  theme_void() +
+  theme(legend.position = 'none',
+        aspect.ratio = 2) +
+  labs(subtitle = 'MCT supplement stop') +
+  scale_fill_manual(values = sample(cols,16, replace = T)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev(c("M0", "M1", "M2", "M3", "M4", "M5", "M6")))
+
+supplstop
+```
+
+```{r print.supplstop, eval = F}
+cairo_pdf(here("out/pdf/s1c.pdf"),
+          width = 1.2,
+          height = 2.57)
+plot(supplstop)
+dev.off()
+```
+
+```{sourcdata.supplstop}
+tmp_df |> dplyr::select(-subjectId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                        file = 'srcdata/s1c.txt')
 ```
 
 ### d) Supplement compliance
@@ -699,55 +824,20 @@ suppl
 ```
 
 ```{r print.suppl1, eval = F}
-cairo_pdf(here("out/pdf/e1c.pdf"),
+cairo_pdf(here("out/pdf/s1d.pdf"),
           width = 3.5,
           height = 2.57)
 plot(suppl)
 dev.off()
 ```
 
-### c) Supplement stop
-
-```{r supplstop, eval = F}
-supplstop <- data |> 
-  dplyr::filter(interventionId == 'K' & ! visitId %in% c("M12", "M18") & is.na(dropout_date)) |>  
-  dplyr::select(subjectId,interventionId, compliance, supplement, supplement_stop) |> 
-  dplyr::distinct() |> 
-  dplyr::filter(supplement == 'no' & !is.na(supplement_stop)) |> 
-  dplyr::add_row(supplement_stop = "M5",
-                 subjectId = NA) |> 
-  dplyr::add_row(supplement_stop = "M6",
-                 subjectId = NA) |> 
-  ggplot(aes(x = supplement_stop))+
-  geom_segment(aes(x = min(supplement_stop),
-                   y = 0, xend = max(supplement_stop), yend = 0),
-                  arrow = arrow(length = unit(0.3, "cm")),
-               linewidth = 0.2) +
-  geom_dotplot(aes(fill = subjectId),
-               stackgroups = TRUE,stackdir = "centerwhole",
-               stackratio = 0.9) +
-  geom_text(aes(x = supplement_stop,
-                y = -0.25,
-                label = supplement_stop),
-            check_overlap = T) +
-  theme_void() +
-  theme(legend.position = 'none',
-        aspect.ratio = 2) +
-  labs(subtitle = 'MCT supplement stop') +
-  scale_fill_manual(values = sample(cols,16, replace = T)) +
-  coord_flip() +
-  scale_x_discrete(limits = rev(c("M0", "M1", "M2", "M3", "M4", "M5", "M6")))
-
-supplstop
+```{r sourcedata.suppl.stop}
+tab |>
+  dplyr::select(Var1, Var2, Freq, prop, n) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                        file = 'srcdata/s1d.txt')
 ```
 
-```{r print.supplstop, eval = F}
-cairo_pdf(here("out/pdf/e1d.pdf"),
-          width = 1.2,
-          height = 2.57)
-plot(supplstop)
-dev.off()
-```
 
 ### e) Effects reported
 
@@ -806,11 +896,18 @@ effect
 ```
 
 ```{r print.effects, eval = F}
-cairo_pdf(here("out/pdf/e1e.pdf"),
+cairo_pdf(here("out/pdf/s1e.pdf"),
           width = 2.5,
           height = 2.57)
 plot(effect)
 dev.off()
+```
+
+```{r sourcedata.suppl.stop}
+tab |>
+  dplyr::select(Var1, Var2, Freq, prop, n) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                        file = 'srcdata/s1e.txt')
 ```
 
 ### f) What effect reported?
@@ -877,11 +974,18 @@ wordsplot
 ```
 
 ```{r print.words, eval = F}
-cairo_pdf(here("out/pdf/e1f.pdf"),
+cairo_pdf(here("out/pdf/s1f.pdf"),
           width = 5,
           height = 5)
 plot(wordsplot)
 dev.off()
+```
+
+```{r sourcedata.words}
+words |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+              file = 'srcdata/s1f.txt')
+              
 ```
 
 ### g) EQ-5D-5L VAS
@@ -902,8 +1006,10 @@ eq5d5l_complete <- eq5d5l |>
   dplyr::count() |> 
   dplyr::filter(n == 2)
 
-vas <- eq5d5l |> 
-  dplyr::filter(interventionId != 'S' & subjectId %in% eq5d5l_complete$subjectId) |> 
+eq5d5l_df <- eq5d5l |> 
+  dplyr::filter(interventionId != 'S' & subjectId %in% eq5d5l_complete$subjectId)
+
+vas <- eq5d5l_df |> 
   ggplot(aes(x = visitId,
              y = eq5d5l_eqvas,
              colour = interventionId))  +
@@ -928,7 +1034,7 @@ vas <- eq5d5l |>
 ```
 
 ```{r print.vas, eval = F}
-cairo_pdf(here("out/pdf/e1g.pdf"),
+cairo_pdf(here("out/pdf/s1g.pdf"),
           width = 2.57,
           height = 2.57)
 plot(vas)
@@ -977,11 +1083,20 @@ scores <- tmp2 |>
 ```
 
 ```{r print.eq, eval = F}
-cairo_pdf(here("out/pdf/e1h.pdf"),
+cairo_pdf(here("out/pdf/s1h.pdf"),
           width = 3.75,
           height = 2.57)
 plot(scores)
 dev.off()
+```
+
+```{r sourcedata.eq5d5l}
+eq5d5l_df |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-c(subjectId, t)) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+              file = 'srcdata/s1gh.txt')
+              
 ```
 
 ### i) Exercise
@@ -1033,13 +1148,13 @@ nonwear_threshold <- 500
 active_threshold  <- 7000
 
 wearable_filtered <- wearable |> 
-  filter(steps > nonwear_threshold) |> 
-  mutate(activity_level = ifelse(steps >= active_threshold, "Active", "Sedentary"))
+  dplyr::filter(steps > nonwear_threshold) |> 
+  dplyr::mutate(activity_level = ifelse(steps >= active_threshold, "Active", "Sedentary"))
 
-d_int  <- as.data.table(interval_windows)
-d_days <- as.data.table(wearable_filtered)
+d_int  <- data.table::as.data.table(interval_windows)
+d_days <- data.table::as.data.table(wearable_filtered)
 
-setkey(d_int, subjectId, start, end)
+data.table::setkey(d_int, subjectId, start, end)
 
 # t in (start, end] — i.e., strictly after start, up to and including end.
 # (Prevents double-assign at boundaries if two windows abut.)
@@ -1079,6 +1194,13 @@ complete <- interval_summary |>
   dplyr::pull(subjectId) |> 
   unique()
 
+## In text stats
+interval_summary |> 
+  dplyr::filter(interventionId != 'S') |> 
+  dplyr::filter(subjectId %in% complete) |> 
+  dplyr::group_by(visitId) |> 
+  dplyr::summarise(med = median(mean_steps))
+
 plot <- interval_summary |> 
   dplyr::filter(interventionId != 'S') |> 
   dplyr::filter(subjectId %in% complete) |> 
@@ -1097,15 +1219,26 @@ plot <- interval_summary |>
 ```
 
 ```{r print.ex, eval = F}
-cairo_pdf(here("out/pdf/e1i.pdf"),
+cairo_pdf(here("out/pdf/s1i.pdf"),
           width = 2.95,
           height = 2.57)
 plot(plot)
 dev.off()
 ```
 
+```{r sourcedata.act}
+out <- interval_summary |> 
+  dplyr::filter(interventionId != 'S') |> 
+  dplyr::filter(subjectId %in% complete) |> 
+  dplyr::select(subjectId, visitId, mean_steps, interventionId)  |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
 
-## Extended Data figure 2
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s1i.txt')
+```
+
+## Supplementary figure 2
 
 (Reviewer request, UpSet plot)
 
@@ -1158,15 +1291,21 @@ up <- upset(wide,nsets = 40, order.by = 'freq',
 ```
 
 ```{r}
-pdf(file = 'figures-png/UpSetPlot.pdf',
+pdf(file = 'figures-png/figure-s2.png',
     width = 6,
     height = 7)
 print(up)
 dev.off()
 ```
 
+```{r}
+wide |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s2.txt')
 
-## Extended Data figure 3
+```
+
+
+## Supplementary figure 3
 
 ### a) PC Hulls 
 
@@ -1243,6 +1382,16 @@ a <- pcdat |>
        y = lab_y)
 ```
 
+
+```{r sourcedata.pcdat}
+out <- pcdat |> dplyr::select(Dim.1, Dim.2, subjectId, interventionId, visitId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s3a.txt')
+```
+
 ### b) Scree plot
 
 ```{r scree, eval = F}
@@ -1263,6 +1412,14 @@ b <- scree |>
   scale_y_continuous(expand = c(0, 0.1)) +
   scale_x_continuous(breaks = c(1:10),
                      labels = paste0("PC", c(1:10)))
+```
+
+```{r sourcedata.scree}
+out <-scree |> as.data.frame() |> tibble::rownames_to_column('PC') |> 
+  dplyr::select(PC, `percentage of variance`) |> 
+  dplyr::slice(1:10)
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s3b.txt')
 ```
 
 ### c-g) PCA contributions
@@ -1384,15 +1541,33 @@ plot <- (a+b + pcs) +
 ```
 
 ```{r print.e2, eval = F}
-cairo_pdf(here("out/pdf/e3.pdf"),
+cairo_pdf(here("out/pdf/s3.pdf"),
           width = 12,
           height = 16)
 plot(plot)
 dev.off()
+```
 
-# ggsave(plot = plot,
-#        filename = "figures-png/e2.png",
-#        width = 12, height = 11)
+```{r}
+library(purrr)
+
+source_data <- map_dfr(1:10, function(pc) {
+  Dim <- paste0("Dim.", pc)
+  
+  contrib |>
+    dplyr::arrange(desc(.data[[Dim]])) |>
+    dplyr::slice(1:10) |>
+    dplyr::transmute(
+      PC = paste0("PC", pc),
+      rank = dplyr::row_number(),
+      feature = feature,
+      assay = assay,
+      contribution = .data[[Dim]]
+    )
+})
+
+source_data |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s3c-l.txt')
 ```
 
 :::

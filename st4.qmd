@@ -1,11 +1,11 @@
 ---
-title: "Wilcoxon tests (high compliance only) (ET5)"
+title: "Wilcoxon tests (comparing intervention) (ST4)"
 format:
   html:
     toc: true
 ---
 
-Extended Data Table 5 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) run on highly compliant individuals who finished the study (per protocol); paired.
+Supplementary Table 4 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) comparing changes in highly compliant individuals allocated to I or K interventions (unpaired).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
@@ -15,12 +15,12 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 library(here)
 library(dplyr)
 
-here::i_am('et5.qmd')
+here::i_am('st4.qmd')
 
 load(here("out/wilcoxon-tests.Rdata"))
 source(here("src/renameVarsWilcoxon.R"))
 wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)
-DT::datatable(wilcoxon_tests$`high compliance only` |> 
+DT::datatable(wilcoxon_tests$`I versus K` |> 
                 dplyr::filter(!is.na(p_M6)) |> 
                 dplyr::arrange(p_M6))
 ```

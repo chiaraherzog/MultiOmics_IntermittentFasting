@@ -1,11 +1,11 @@
 ---
-title: "LME (all) (ET6)"
+title: "LME (all) (ST6)"
 format:
   html:
     toc: true
 ---
 
-Extended Data Table 6 is the output of linear mixed-effects models run on all complete cases in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + bmi at consent + visitId + (1|subjectId)`.
+Supplementary Table 6 is the output of linear mixed-effects models run on all complete cases in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + bmi at consent + visitId + (1|subjectId)`.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 ```{r libraries}
 library(dplyr)
 library(here)
-here::i_am('et6.qmd')
+here::i_am('st6.qmd')
 ```
 
 ```{r}

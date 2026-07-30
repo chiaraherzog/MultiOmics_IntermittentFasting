@@ -88,6 +88,8 @@ load(here("src/vars.Rdata"))
 vars_list <- vars |>
   dplyr::filter(!grepl("ASVs$|families_clr", assay)) |>
   dplyr::select(assay, x) |>
+  dplyr::add_row(assay = 'Functional sports exam',
+                 x = 'vo2max_abs') |> 
   dplyr::group_by(assay) |>
   dplyr::summarise(features = list(x), .groups = 'drop') |>
   tibble::deframe()

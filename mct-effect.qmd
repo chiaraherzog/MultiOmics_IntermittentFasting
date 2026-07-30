@@ -1,5 +1,5 @@
 ---
-title: "Figure 6: MCT effect analysis (F5)"
+title: "Figure 6: MCT effect analysis"
 format:
   html:
     toc: true
@@ -203,8 +203,6 @@ plot_data |>
   theme(panel.grid = element_blank()) +
   coord_cartesian(expand = F)
 
-
-
 ```
 
 ### Permuted
@@ -219,6 +217,8 @@ vars2 <- vars |> dplyr::mutate(x = paste0(assay, "_", x)) |>
 
 # Time ------
 load("out/outPerm.Rdata")
+load("out/outPermMinimal.Rdata")
+
 time <- out_lmm$`Minimal model` |> 
   dplyr::select(x, p.value_visitIdM2, p.value_visitIdM4, p.value_visitIdM6)  |> 
   dplyr::inner_join(vars2)
@@ -411,6 +411,12 @@ pdf('out/pdf/ketogenic-a.pdf', width = 13,
     height = 3.5)
 print(a)
 dev.off()
+```
+
+```{r sourcedata.mct.a}
+a$data |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6a.txt')
+
 ```
 
 quick enichment check:
@@ -647,8 +653,6 @@ b <- plot_data |>
   coord_cartesian(expand = F)
 ```
 
-<!-- Note: permuted and non-permuted-corrected significant p values areessentially identical, indicating results are not by chance. -->
-
 
 ## Heatmap of affected changes
 
@@ -751,6 +755,13 @@ draw(plot)
 dev.off()
 ```
 
+```{r sourcedata.heatmap}
+data.frame(variable = plot@row_names_param$labels,
+              plot@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6b.txt')
+
+```
+
 
 ## Examples 
 
@@ -772,8 +783,15 @@ p1 <- comparison_plots(df_change_cerv, 'globalMethylation_island_adj', nn = 4, y
   coord_cartesian(ylim = c(-0.015,0.025))
 ```
 
+```{r sourcedata.globalmethylation}
+p1$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6c.txt')
 
-### 1-Methylhistidine
+```
+
+### Threonine
 
 ```{r}
 df <- as.data.frame(longForm(get(load(path))["Threonine",,],
@@ -783,6 +801,15 @@ df <- as.data.frame(longForm(get(load(path))["Threonine",,],
    filter_if(age_norm = T, type_norm = T)
 
 p2 <- comparison_plots(df, 'Threonine', nn = 4, ylab = '<b>∆ Threonine</b><br>(urine metabolome)', fdr = T)
+```
+
+
+```{r sourcedata.methylhist}
+p2$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6d.txt')
+
 ```
 
 ### Selenomonadaceae; ASV_eqj_31u_d9k (saliva)
@@ -801,6 +828,15 @@ p3 <- comparison_plots(df, 'ASV_eqj_31u_d9k', nn = 4, ylab = '<b>∆ Selenomonad
 
 ```
 
+
+```{r sourcedata.seleno}
+p3$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6e.txt')
+
+```
+
 ### Veillonellaceae (saliva)
 
 ```{r}
@@ -812,6 +848,15 @@ df <- as.data.frame(longForm(get(load(path))["Veillonellaceae",,],
 
 p4 <- comparison_plots(df, 'Veillonellaceae', nn = 4, ylab = '<b>∆ Veillonellaceae</b><br>(saliva microbiome)', fdr = T)  +
   coord_cartesian(ylim = c(-0.08,0.08))
+
+```
+
+
+```{r sourcedata.veillo}
+p4$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6f.txt')
 
 ```
 
@@ -831,6 +876,15 @@ p5 <- comparison_plots(df, 'ASV_3v4_bkj', nn = 4, ylab = '<b>∆ Rikenellaceae;<
 
 ```
 
+
+```{r sourcedata.riken}
+p5$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6g.txt')
+
+```
+
 ### UCG-10 (stool)
 
 ```{r}
@@ -842,6 +896,15 @@ df <- as.data.frame(longForm(get(load(path))["UCG-010",,],
 
 p6 <- comparison_plots(df, 'UCG-010', nn = 4, ylab = '<b>∆ UCG-010</b><br>(stool microbiome)', fdr = T)  +
   coord_cartesian(ylim = c(-0.02,0.025))
+```
+
+
+```{r sourcedata.ucg10}
+p6$data |> 
+  dplyr::select(rowname, value, visitId, interventionId) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/6h.txt')
+
 ```
 
 ```{r}

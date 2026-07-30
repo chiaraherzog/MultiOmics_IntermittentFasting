@@ -1,11 +1,11 @@
 ---
-title: "Wilcoxon tests (all) (ET2)"
+title: "Wilcoxon tests (all) (ST2)"
 format:
   html:
     toc: true
 ---
 
-Extended Data Table 2 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) run on all individuals who finished the study (intention to treat); paired.
+Supplementary Table 2 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) run on all individuals who finished the study (complete case); paired.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 ```{r}
 library(here)
 library(dplyr)
-here::i_am('et2.qmd')
+here::i_am('st2.qmd')
 load(here("out/wilcoxon-tests.Rdata"))
 source(here("src/renameVarsWilcoxon.R"))
 wilcoxon_tests <- renameVarsWilcoxon(wilcoxon_tests)

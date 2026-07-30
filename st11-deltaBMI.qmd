@@ -1,5 +1,5 @@
 ---
-title: "Delta BMI assessment"
+title: "Delta BMI assessment (ST11)"
 format:
   html:
     toc: true
@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
 ```{r libs, eval = T}
 library(here)
 library(dplyr)
-here::i_am("deltaBMI.qmd")
+here::i_am("st11-deltaBMI.qmd")
 ```
 
 Here we explore the impact of ∆ BMI on outcomes. Basic models are run including ∆ bmi as a covariate.
@@ -33,11 +33,35 @@ vars1 <- vars |> dplyr::filter(!assay %in% c("Stool microbiome: ASVs",
 
 x <- out_lmm$`Basic model with BMI and BMI change` |> 
   dplyr::filter(x %in% vars1$new)
+
 sig_bmi_delta <- x[x$p.value_dbmi < 0.05,]
 
 source(here("src/FDRcorr.R"))
 y <- FDRcorr(x)
 sig_bmi_delta_adj <- y[y$p.value_dbmi_adj < 0.05,]
+sig_bmi_delta_adj$p.value_dbmi_adj
+
+
+out <- FDRcorr(x)
+
+out2 <- out |> 
+  dplyr::select(-starts_with("std.error_")) |> 
+  dplyr::left_join(dplyr::select(vars1, assay, assay2, label, x), by = c('x' = 'x',
+                                                                         'assay' = 'assay')) |> 
+  plyr::mutate(variable = ifelse(!is.na(label), label, x),
+                    assay = ifelse(!is.na(assay2), assay2, assay)) |> 
+      dplyr::select(-any_of(c("x", "label", "assay2"))) |> 
+      dplyr::mutate(across(!contains(c("variable", "assay", "group")), ~ signif(., digits = 4))) |> 
+      
+      dplyr::arrange(assay) |> 
+      dplyr::relocate(assay, variable) |> 
+      dplyr::distinct() |> 
+  dplyr::select(contains(c("assay", "variable", "dbmi")))
+
+
+writexl::write_xlsx(as.data.frame(out2),
+                    path = paste0("out/Supplementary-Table-S11.xlsx"))
+
 ```
 
 `r nrow(sig_bmi_delta_adj)` remain significant after FDR: `r sig_bmi_delta_adj$x`

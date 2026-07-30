@@ -1,11 +1,11 @@
 ---
-title: "Wilcoxon tests (comparing compliance) (ET3)"
+title: "Wilcoxon tests (comparing compliance) (ST3)"
 format:
   html:
     toc: true
 ---
 
-Extended Data Table 3 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) comparing changes in higher versus lower compliant individuals (unpaired).
+Supplementary Table 3 is the output of [Wilcoxon tests](helper-wilcoxon-tests.qmd) comparing changes in higher versus lower compliant individuals (unpaired).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 library(here)
 library(dplyr)
 
-here::i_am('et3.qmd')
+here::i_am('st3.qmd')
 
 load(here("out/wilcoxon-tests.Rdata"))
 source(here("src/renameVarsWilcoxon.R"))

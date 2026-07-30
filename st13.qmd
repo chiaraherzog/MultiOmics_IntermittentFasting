@@ -1,0 +1,33 @@
+---
+title: "Repeated measures corr (ST13)"
+format:
+  html:
+    toc: true
+---
+
+Supplementary Table 13 is the output of the [repeated measures correlation analysis](helper-rmcorr.qmd), filtering self-correlations and any p values > 0.01.
+
+```{r}
+library(here)
+here::i_am('st13.qmd')
+load("out/rmcorr_full.Rdata")
+
+corr <- corr |> dplyr::arrange(padj_v2) |> 
+  dplyr::filter(padj_v2 < 0.05)
+writexl::write_xlsx(corr, path = here("out/Supplementary-Table-S13.xlsx"))
+```
+
+```{r}
+DT::datatable(corr)
+
+```
+
+```{r}
+connections <- dplyr::bind_rows(
+  corr |> dplyr::select(assay_lab = assay_lab1, label = label1),
+  corr |> dplyr::select(assay_lab = assay_lab2, label = label2)
+) |>
+  dplyr::count(assay_lab, label, name = "n_connections") |>
+  dplyr::arrange(desc(n_connections))
+
+```

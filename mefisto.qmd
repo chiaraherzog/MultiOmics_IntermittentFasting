@@ -273,8 +273,6 @@ df2 <- plot_factors_vs_cov(model, color_by = "visitId", legend = FALSE, return_d
 p <- plot_variance_explained(model,
                          x = 'group',
                          y = 'factor') + theme(strip.text.x = element_text(angle = 90, hjust = 0))
-
-ggsave(p, file = 'out/pdf/e13a.pdf', width = 6, height = 6.5)
 ```
 
 ## b) factor variance and significance association with selected covariates:
@@ -289,9 +287,17 @@ labs <- c('interventionId', 'subjectId', 'visitId', 'compliance rate',
 p <- mefisto_factor_covcor(df1,df2,feat,labs)
 h <- p
 
-cairo_pdf(file = 'out/pdf/e13b.pdf', width = 5, height = 3.5)
+cairo_pdf(file = 'out/pdf/s17a.pdf', width = 5, height = 3.5)
 draw(h)
 dev.off()
+```
+
+```{r sourcedata.17a}
+data.frame(variable = rownames(h@matrix),
+           h@matrix) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17a.txt')
+
 ```
 
 * factors 9, 11, 12, and 15 significantly associated with time
@@ -304,21 +310,45 @@ source("src/mefisto_plots.R")
 p <- mefisto_biplot_F12(df1,df2,"factor", factor1 = 'Factor9', factor2 = 'Factor12')
 plot <- p +
   labs(x = 'Factor9', y = 'Factor12')
-ggsave(plot, file = 'out/pdf/e13c.pdf', width = 6, height = 3.5)
+ggsave(plot, file = 'out/pdf/s17b.pdf', width = 6, height = 3.5)
 
+```
+
+```{r sourcedata.s17c}
+plot$data |> dplyr::select(-sample) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17b.txt')
 ```
 
 ## d-f) Factor changes
 
 ```{r}
 p <- mefisto_factor_box(df2, metadat, "Factor12")
-ggsave(p, file = 'out/pdf/e13d.pdf', width = 9, height = 3.5)
+ggsave(p, file = 'out/pdf/s17d.pdf', width = 9, height = 3.5)
 
+p$data |> dplyr::select(subjectId, visitId, value.factor, compliance, group) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17c.txt')
+ 
 p <- mefisto_factor_box(df2, metadat, "Factor9")
-ggsave(p, file = 'out/pdf/e13e.pdf', width = 9, height = 3.5)
+ggsave(p, file = 'out/pdf/s17e.pdf', width = 9, height = 3.5)
+
+p$data |> dplyr::select(subjectId, visitId, value.factor, compliance, group) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17e.txt')
 
 p <- mefisto_factor_box(df2, metadat, "Factor11")
-ggsave(p, file = 'out/pdf/e13f.pdf', width = 9, height = 3.5)
+ggsave(p, file = 'out/pdf/s17g.pdf', width = 9, height = 3.5)
+
+p$data |> dplyr::select(subjectId, visitId, value.factor, compliance, group) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17g.txt')
 ```
 
 ## g) Factor weights
@@ -328,20 +358,36 @@ source("src/plotTopFactorWeights.R")
 
 f12 <- plotTopFactorWeights(model, factorFilter = 12,orientation = 'landscape')
 f12
-cairo_pdf(file = 'out/pdf/e13g.pdf', width = 6, height = 3.5)
+cairo_pdf(file = 'out/pdf/s17d.pdf', width = 6, height = 3.5)
 print(f12)
 dev.off()
 
+f12$data |> dplyr::arrange(dplyr::desc(abs(value))) |> dplyr::slice(1:30) |>
+  dplyr::select(feature, value, view)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17d.txt')
+  
+
 f9 <- plotTopFactorWeights(model, factorFilter = 9,orientation = 'landscape')
 f9
-cairo_pdf(file = 'out/pdf/e13h.pdf', width = 6, height = 3.5)
+cairo_pdf(file = 'out/pdf/s17f.pdf', width = 6, height = 3.5)
 print(f9)
 dev.off()
 
+f9$data |> dplyr::arrange(dplyr::desc(abs(value))) |> dplyr::slice(1:30) |>
+  dplyr::select(feature, value, view)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17f.txt')
+
 f11 <- plotTopFactorWeights(model, factorFilter = 11,orientation = 'landscape')
 f11
-cairo_pdf(file = 'out/pdf/e13i.pdf', width = 6, height = 3.5)
+cairo_pdf(file = 'out/pdf/s17h.pdf', width = 6, height = 3.5)
 print(f11)
 dev.off()
+
+f11$data |> dplyr::arrange(dplyr::desc(abs(value))) |> dplyr::slice(1:30) |>
+  dplyr::select(feature, value, view)|> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s17h.txt')
 ```
 

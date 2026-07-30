@@ -7,7 +7,7 @@ plotFP <- function(data, variable, nn = 4,
                    fdr = TRUE){
   
   if(filter_high == T){
-    data <- dat |> dplyr::filter(compliance == 'high')
+    data <- data |> dplyr::filter(compliance == 'high')
   }
   
   complete <- data |> 
@@ -33,6 +33,7 @@ plotFP <- function(data, variable, nn = 4,
       out <- do.call(rbind, lapply(list, function(comp){                # loop over compliance list
         
         long_pval <- wilcoxon_tests[[comp]] |>  # grab relevant wilcoxon test result item
+          dplyr::rename(rowname = x) |> 
           dplyr::filter(rowname == variable) |>                             # filter variable
           dplyr::select(rowname, ends_with("_adj")) |>                      # filter rowname and adjusted pvalue
           tidyr::pivot_longer(any_of(ends_with("_adj"))) |>                 # pivot to long format

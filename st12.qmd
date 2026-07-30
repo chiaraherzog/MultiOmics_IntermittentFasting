@@ -1,0 +1,25 @@
+---
+title: "Baseline characteristics and BMI change (ST12)"
+format:
+  html:
+    toc: true
+---
+
+Supplementary Table 12 shows the association of baseline characteristics with change in BMI at month 6 (see [helper-bmi](helper-bmi.qmd) script).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
+```
+
+```{r libraries}
+library(dplyr)
+library(here)
+here::i_am('st11.qmd')
+```
+
+
+```{r}
+assoc_clean <- readxl::read_xlsx(here("out/Supplementary-Table-S12.xlsx"))
+
+DT::datatable(assoc_clean)
+```

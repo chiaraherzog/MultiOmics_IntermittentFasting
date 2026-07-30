@@ -1,5 +1,5 @@
 ---
-title: "Sensitivity analysis: time (E14)"
+title: "Sensitivity analysis: time (S16)"
 format:
   html:
     toc: true
@@ -10,9 +10,9 @@ format:
 
 ::: {.panel-tabset}
 
-# Extended Data Figure 13
+# Supplementary Figure 16
 
-![](figures-png/e13-model-sensitivity.png)
+![](figures-png/figure-s16.png)
 
 # Code
 
@@ -132,6 +132,38 @@ e <- est |> ggplot(aes(x = -log10(p.value_visitIdM6+1),
 ((a) | ((b/c)|(d/e))) + plot_layout(guides = 'collect')
 ```
 
+
+```{r sourcedata.overlaps}
+# a
+all_items <- sort(unique(unlist(list)))
+mat <- sapply(list, function(s) as.integer(all_items %in% s))
+df <- data.frame(item = all_items, mat, check.names = FALSE)
+
+df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16a.txt')
+
+# c
+b$data |> dplyr::select(estimate_visitIdM6, estimate_visitIdOrdered.L) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16c.txt')
+
+# d
+c$data |> dplyr::select(p.value_visitIdM6, p.value_visitIdOrdered.L) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16d.txt')
+
+# e
+d$data |> dplyr::select(estimate_visitIdM6, estimate_time) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16e.txt')
+
+# f
+e$data |> dplyr::select(p.value_visitIdM6, p.value_time) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16f.txt')
+
+```
+
 ## Interaction model: Overlap of significance with time.
 
 ```{r}
@@ -213,6 +245,41 @@ j <- est |> ggplot(aes(x = -log10(`p.value_visitIdM6:compliancehigh`+1),
   scale_fill_viridis(option = 'H',limits = c(0, 80)) +
   labs(x = '-log10(p value+1) (time X compliance)<br>time as <b>factor</b>',
        y = '-log10(p value+1) (time X compliance)<br>time as <b>continuous</b>')
+```
+
+```{r sourcedata.overlaps2}
+# b
+all_items <- sort(unique(unlist(list)))
+mat <- sapply(list, function(s) as.integer(all_items %in% s))
+df <- data.frame(item = all_items, mat, check.names = FALSE)
+
+df |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16b.txt')
+
+# g
+g$data |> dplyr::select( `estimate_visitIdM6:compliancehigh`,
+                         `estimate_visitIdOrdered.L:compliancehigh`) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16g.txt')
+
+
+# h
+h$data |> dplyr::select( `p.value_visitIdM6:compliancehigh`,
+                         `p.value_visitIdOrdered.L:compliancehigh`) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16h.txt')
+# i 
+i$data |> dplyr::select( `estimate_visitIdM6:compliancehigh`,
+                         `estimate_time:compliancehigh`) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16i.txt')
+
+# j
+j$data |> dplyr::select( `p.value_visitIdM6:compliancehigh`,
+                         `p.value_time:compliancehigh`) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s16j.txt')
+
 ```
 
 

@@ -189,6 +189,11 @@ populations <- populations |> dplyr::filter(!is.na(main_analysis) & main_analysi
 exp <- c("Flow cytometry: T cell staining", 'Flow cytometry: white blood cell staining')
 out <- trainImmAge_all(data, exp, populations,
                    mainOnly = T)
+
+load(here("out/ImmAge_gen_coef.Rdata"))
+# identical(ImmAge_gen_coef, out$coef_raw)
+save(out, file = 'out/immage_out_cv.Rdata")
+
 ```
 
 

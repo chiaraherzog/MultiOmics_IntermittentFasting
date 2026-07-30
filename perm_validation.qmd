@@ -1,0 +1,456 @@
+---
+title: "Permutation strategy validation under the null hypothesis"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-overflow: wrap
+    code-tools: true
+---
+  
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, eval = F)
+```
+
+
+```{r libs, eval = T}
+
+library(dplyr)
+library(data.table)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(future.apply)
+
+here::i_am("perm_validation.qmd")
+
+```
+
+This analysis evaluates whether the permutation procedure controls Type I error under the null hypothesis.
+
+The simulated data contain:
+  
+- subject-level random effects,
+- repeated measurements,
+- intervention groups,
+- age and BMI covariates,
+
+but **no visit effect and no visit × intervention interaction**.
+
+A valid permutation procedure should generate approximately uniform p-values and maintain a false-positive rate close to the nominal alpha level (0.05).
+
+
+```{r design, eval = F}
+# load in data
+load("data/data_normalized.Rdata")
+
+load("src/vars.Rdata")
+
+varsList <- vars |> dplyr::filter(!assay %in% c('Saliva microbiome: ASVs', 'Stool microbiome: ASVs',
+                                            'Saliva microbiome: families_clr', 'Stool microbiome: families_clr')) |> 
+  dplyr::group_by(assay) |> 
+  dplyr::summarise(features = list(x), .groups = 'drop') |> tibble::deframe()
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longForm(subsetByAssay(data,varsList),
+                             colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs'))) |> 
+  dplyr::filter(!is.na(value))
+
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                visitId = factor(visitId, levels = c("M0", "M2", "M4", "M6")),
+                visitIdOrdered = ordered(visitId)) |> 
+  dplyr::mutate(rowname = paste0(assay, "_", rowname))
+
+# check class
+class(df$visitId)
+class(df$visitIdOrdered)
+
+# remove full data
+rm(data);gc()
+
+design <- df %>% dplyr::select(subjectId, interventionId, visitId, age_at_consent, bmi_at_consent) %>% distinct()
+```
+
+```{r sim_par}
+
+n_null_simulations <- 100
+n_permutations <- 100
+alpha <- 0.05
+set.seed(134)
+
+```
+
+```{r functions}
+
+#value = age + bmi + subject random effect + residual
+#no visit effect
+
+simulate_null_dataset <- function(design){
+
+  subject_effects <- data.frame(
+    subjectId = unique(design$subjectId),
+    subject_random = rnorm(
+      length(unique(design$subjectId)),
+      mean = 0,
+      sd = 1
+    )
+  )
+
+  simulated <- design %>%
+    left_join(subject_effects, by="subjectId") %>%
+    mutate(
+      value =
+        0.05 * age_at_consent +
+        0.02 * bmi_at_consent +
+        subject_random +
+        rnorm(n(),0,1)
+    )
+
+  return(simulated)
+
+}
+
+# reproduce permutation strategy
+# shuffle visitId within subject, preserve longitudinal structure
+
+run_one_permutation <- function(df, test_term){
+
+  df_perm <- copy(df)
+
+  setDT(df_perm)
+
+  df_perm[, visitId :=
+           if(.N > 1)
+             sample(visitId)
+           else
+             visitId,
+         by = subjectId]
+
+
+  model <- lmer(
+    value ~ visitId*interventionId +
+      age_at_consent +
+      bmi_at_consent +
+      (1|subjectId),
+    data=df_perm,
+    REML=FALSE
+  )
+
+
+  result <- broom.mixed::tidy(model) %>%
+    filter(
+      effect=="fixed",
+      grepl(paste0(test_term,"$"),term)
+    ) %>%
+    pull(p.value)
+
+
+  return(result)
+
+}
+
+
+run_permutation_analysis <- function(df, test_term){
+
+  # observed model
+
+  observed_model <- lmer(
+    value ~ visitId*interventionId +
+      age_at_consent +
+      bmi_at_consent +
+      (1|subjectId),
+    data=df,
+    REML=FALSE
+  )
+
+
+  observed_p <- broom.mixed::tidy(observed_model) %>%
+    filter(
+      effect=="fixed",
+      grepl(paste0(test_term,"$"),term)
+    ) %>%
+    pull(p.value)
+
+
+  # permutations
+
+  permuted_p <- map_dbl(
+    1:n_permutations,
+    ~run_one_permutation(df, test_term)
+  )
+
+
+  empirical_p <-
+    mean(permuted_p <= observed_p)
+
+
+  tibble(
+    observed_p = observed_p,
+    empirical_p = empirical_p,
+    permuted_distribution = list(permuted_p)
+  )
+
+}
+
+
+```
+
+# Simulation visitID
+
+`r n_null_simulations` simulations, `r n_permutations` permutations for visitId = M6.
+
+
+```{r run_m6, eval = F}
+
+testing <- "visitIdM6"
+
+null_results <- map_dfr(
+  1:n_null_simulations,
+  function(i){
+
+    message("Simulation ",i)
+
+    simulated <- simulate_null_dataset(design)
+
+    run_permutation_analysis(simulated, testing)
+
+  }
+)
+
+save(null_results, file = "out/perm_sim_m6.Rdata")
+
+```
+
+## Type I error estimation
+
+```{r}
+
+load("out/perm_sim_m6.Rdata")
+
+type1_error <- mean(
+  null_results$empirical_p < alpha
+)
+
+type1_error
+
+tibble(
+  expected = alpha,
+  observed = type1_error
+)
+
+```
+
+## Distribution of permutation p-values
+
+### Across null simulations
+
+Under the null, permutation p-values should approximately follow a uniform distribution (P value exact one-sample Kolmogorov-Smironov test > 0.05).
+
+```{r}
+
+p1 <- null_results %>%
+  ggplot(
+    aes(empirical_p)
+  )+
+  geom_histogram(
+    bins=20
+  )+
+  xlim(0,1)+
+  labs(
+    x="Empirical permutation P value",
+    y="Count",
+    title="Term = visitIdM6"
+  ) +
+  geom_vline(xintercept = 0.05, linetype = "dashed") +
+  theme_classic()
+
+
+ks_test <- broom::tidy(ks.test(
+  null_results$empirical_p,
+  "punif"
+))
+
+ks_test
+
+summary_m6 <- tibble(
+  Term = testing,
+  Number_of_simulations = n_null_simulations,
+  Number_of_permutations = n_permutations,
+  Nominal_alpha = alpha,
+  Observed_Type_I_error = type1_error,
+  KS_uniformity_pvalue = ks_test$p.value
+)
+
+
+```
+
+### Underlying p-values (pooled)
+
+```{r}
+all_perm_p <- unlist(null_results$permuted_distribution)
+ggplot(data.frame(p=all_perm_p), aes(p)) +
+  geom_histogram(bins=20) +
+  xlim(0,1) +
+  labs(
+    x="P values generated during permutation under the null",
+    y="Count",
+    title="Term = visitIdM6"
+  ) +
+  theme_classic()
+
+ks.test(all_perm_p, "punif")
+```
+
+# Simulation interaction
+
+`r n_null_simulations` simulations, `r n_permutations` permutations for visitIdM6:interventionIdK.
+
+
+```{r run_m6, eval = F}
+
+testing <- "visitIdM6:interventionIdK"
+
+null_results <- map_dfr(
+  1:n_null_simulations,
+  function(i){
+
+    message("Simulation ",i)
+
+    simulated <- simulate_null_dataset(design)
+
+    run_permutation_analysis(simulated, testing)
+
+  }
+)
+
+save(null_results, file = "out/perm_sim_int.Rdata")
+
+```
+
+## Type I error estimation
+
+```{r}
+
+load("out/perm_sim_int.Rdata")
+
+type1_error <- mean(
+  null_results$empirical_p < alpha
+)
+
+type1_error
+
+tibble(
+  expected = alpha,
+  observed = type1_error
+)
+
+```
+
+## Distribution of permutation p-values
+
+### Across null simulations
+
+Under the null, permutation p-values should approximately follow a uniform distribution (P value exact one-sample Kolmogorov-Smironov test > 0.05).
+
+```{r}
+
+p2 <- null_results %>%
+  ggplot(
+    aes(empirical_p)
+  )+
+  geom_histogram(
+    bins=20
+  )+
+  xlim(0,1)+
+  labs(
+    x="Empirical permutation P value",
+    y="Count",
+    title="Term = visitIdM6:interventionIdK"
+  ) +
+  geom_vline(xintercept = 0.05, linetype = "dashed") +
+  theme_classic()
+
+
+ks_test <- broom::tidy(ks.test(
+  null_results$empirical_p,
+  "punif"
+))
+
+ks_test
+
+summary_int <- tibble(
+  Term = testing,
+  Number_of_simulations = n_null_simulations,
+  Number_of_permutations = n_permutations,
+  Nominal_alpha = alpha,
+  Observed_Type_I_error = type1_error,
+  KS_uniformity_pvalue = ks_test$p.value
+)
+
+
+```
+
+### Underlying p-values (pooled)
+
+```{r}
+all_perm_p <- unlist(null_results$permuted_distribution)
+ggplot(data.frame(p=all_perm_p), aes(p)) +
+  geom_histogram(bins=20) +
+  xlim(0,1) +
+  labs(
+    x="P values generated during permutation under the null",
+    y="Count",
+    title="Term = visitIdM6"
+  ) +
+  theme_classic()
+
+ks.test(all_perm_p, "punif")
+```
+
+
+# Summary
+
+```{r}
+
+summary_table <- bind_rows(summary_m6, summary_int)
+summary_table
+
+```
+
+```{r print.supplementary, eval = F}
+
+p <- p1 + p2
+
+ggsave(p,
+       filename = 'figures-png/val_perm.png',
+       dpi = 600,
+       width = 10,
+       height = 4,
+       unit = 'in')
+```
+
+```{sourcedata.p1.p2}
+p1$data %>%
+  mutate(row_id = row_number()) %>%
+  unnest_wider(permuted_distribution, names_sep = "_") |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s20_1.txt')
+
+p2$data %>%
+  mutate(row_id = row_number()) %>%
+  unnest_wider(permuted_distribution, names_sep = "_") |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s20_2.txt')
+```
+

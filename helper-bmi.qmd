@@ -1,5 +1,5 @@
 ---
-title: "baseline features ~ follow-up BMI change (E13)"
+title: "baseline features ~ follow-up BMI change (S15)"
 format:
   html:
     toc: true
@@ -110,7 +110,7 @@ df2 <- FDRcorr(df2)
 sig <- df2[df2$p.value_value_adj < 0.05 & !is.na(df2$p.value_value_adj),]
 ```
 
-## Plot - E12
+## Plot - S15
 
 ```{r}
 load("data/data_raw.Rdata")
@@ -127,10 +127,17 @@ p <- dat |>
   labs(x = 'defective NK cells at baseline',
        y = '∆ BMI at M6')
 
-ggsave(filename = 'figures-png/e12-dbmi.png',width = 3.5, height = 3.5, plot = p)
+ggsave(filename = 'figures-png/figure-s15-dbmi.png',width = 3.5, height = 3.5, plot = p)
 ```
 
-# Export as ET11
+```{r sourcedata.s15}
+p$data |> dplyr::select(value, dbmi) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s15.txt')
+
+```
+
+# Export as ST12
 
 ```{r}
 load("out/predict_dbmi_baseline_all.Rdata")
@@ -149,7 +156,7 @@ assoc_clean <- df2 |>
   dplyr::select(-contains(c("Intercept", "std.error"))) |> 
   dplyr::select(assay, variable, estimate_value, p.value_value, p.value_value_adj, group)
 
-writexl::write_xlsx(assoc_clean, path = here("out/Extended-Data-Table-11.xlsx"))
+writexl::write_xlsx(assoc_clean, path = here("out/Supplementary-Table-S12.xlsx"))
 
 ```
 

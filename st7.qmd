@@ -1,11 +1,11 @@
 ---
-title: "LME (interaction) (ET7)"
+title: "LME (interaction) (ST7)"
 format:
   html:
     toc: true
 ---
 
-Extended Data Table 7 is the output of linear mixed-effects models run on all complete cases, with an interaction term for visitId and compliance in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + smoking pack years + visitId*compliance + (1|subjectId)`.
+Supplementary Table 7 is the output of linear mixed-effects models run on all complete cases, with an interaction term for visitId and compliance in the [helper-lme](helper-lmm.qmd) script using the model `(value ~ age at consent + smoking pack years + visitId*compliance + (1|subjectId)`.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = F, message = F, warning = F, eval = T)
 ```{r libraries}
 library(dplyr)
 library(here)
-here::i_am('et7.qmd')
+here::i_am('st7.qmd')
 ```
 
 

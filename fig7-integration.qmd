@@ -1,5 +1,5 @@
 ---
-title: "Figure 7: Integrative analysis (F7, E14-17)"
+title: "Figure 7: Integrative analysis (F7, S17-19)"
 format:
   html:
     toc: true
@@ -18,17 +18,17 @@ format:
 
 ![](figures-png/figure6-integration.png)
 
-## Extended Data Figure 15
+## Supplementary Figure 17
 
-![](figures-png/e14-mefisto.png)
+![](figures-png/figure-s17-mefisto.png)
 
-## Extended Data Figure 16
+## Supplementary Figure 18
 
-![](figures-png/e14.png)
+![](figures-png/figure-s18.png)
 
-## Extended Data Figure 17
+## Supplementary Figure 19
 
-![](figures-png/e15.png)
+![](figures-png/figure-s19.png)
 
 :::
 
@@ -148,6 +148,12 @@ bubble_plot <-  dat |>
 cairo_pdf(here("out/pdf/6a.pdf"), width = 4.5, height = 8.5)
 print(bubble_plot)
 dev.off()
+```
+
+```{sourcedata.bubbles}
+bubble_plot$data |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/7a.txt')
 ```
 
 #### a_1) Bubble plot, I versus K separately (not used/archive)
@@ -349,12 +355,6 @@ bubble_plot <- dat |>
 #   coord_cartesian(clip = 'off')
 ```
 
-```{r print.bubbles}
-cairo_pdf(here("out/pdf/6a.pdf"), width = 5, height = 8.5)
-print(bubble_plot)
-dev.off()
-```
-
 #### a_3) Potential diagram - up/down by feature? (not used/archive)
 
 ```{r}
@@ -524,6 +524,13 @@ cairo_pdf(here("out/pdf/6b.pdf"), width = 8, height = 8)
 dev.off()
 ```
 
+```{r}
+corrdiag |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/7b.txt')
+
+```
+
 ### c) Network diagram (methylation features)
 
 ```{r network.diag}
@@ -562,11 +569,11 @@ dev.off()
 ```
 
 
-## Extended Data Figure 15
+## Supplementary Figure 17
 
 see [mefisto analysis helper](mefisto.qmd)
 
-## Extended Data Figure 16
+## Supplementary Figure 18
 
 ### a) p value histogram
 
@@ -590,6 +597,14 @@ a <- corr_full |>
 
 ```
 
+```{r sourcedata.histogram}
+a$data |> dplyr::select(p) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s18a.txt')
+
+```
+
+
 ### b) hEpidish neutro and Neutrophils
 
 ```{r}
@@ -599,6 +614,15 @@ m2 = paste0(corr$assay2[ind],"_", corr$measure2[ind])
 lab1 = "Neutrohil count (normalised)"
 lab2 = "hEpidish neutrophil estimate (normalised)"
 b <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+```{r sourcedata.b}
+b$data |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s18b.txt')
+
 ```
 
 ### c) BCM/Creatinine
@@ -612,6 +636,15 @@ lab2 = 'Creatinine (normalised)'
 c <- rmcorr_plot(m1, m2, lab1, lab2)
 ```
 
+```{r sourcedata.c}
+c$data |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s18c.txt')
+
+```
+
 ### d) GrimAge and Neutrophils
 
 ```{r grimage.neutro}
@@ -621,6 +654,15 @@ m2 = paste0(corr$assay2[ind],"_", corr$measure2[ind])
 lab1 = "Neutrohil count (normalised)"
 lab2 = "DNAmGrimAge V2 (normalised)"
 d <- rmcorr_plot(m1, m2, lab1, lab2)
+```
+
+```{r sourcedata.c}
+d$data |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> dplyr::arrange(id)|>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s18d.txt')
+
 ```
 
 ### e) GrimAge diagram
@@ -681,22 +723,22 @@ dev.off()
 
 # individual
 
-ggsave(a, filename = 'out/pdf/e14a.pdf', width = 3, height = 3)
-ggsave(b, filename = 'out/pdf/e14b.pdf', width = 3, height = 3)
-ggsave(c, filename = 'out/pdf/e14c.pdf', width = 3, height = 3)
-ggsave(d, filename = 'out/pdf/e14d.pdf', width = 3, height = 3)
-ggsave(e, filename = 'out/pdf/e14e.pdf', width = 4.5, height = 3)
-ggsave(f, filename = 'out/pdf/e14f.pdf', width = 4.5, height = 3)
-ggsave(g, filename = 'out/pdf/e14g.pdf', width = 5.75, height = 7)
-ggsave(h, filename = 'out/pdf/e14h.pdf', width = 5.75, height = 7)
-ggsave(i, filename = 'out/pdf/e14i.pdf', width = 4.5, height = 3.5)
+ggsave(a, filename = 'out/pdf/s18a.pdf', width = 3, height = 3)
+ggsave(b, filename = 'out/pdf/s18b.pdf', width = 3, height = 3)
+ggsave(c, filename = 'out/pdf/s18c.pdf', width = 3, height = 3)
+ggsave(d, filename = 'out/pdf/s18d.pdf', width = 3, height = 3)
+ggsave(e, filename = 'out/pdf/s18e.pdf', width = 4.5, height = 3)
+ggsave(f, filename = 'out/pdf/s18f.pdf', width = 4.5, height = 3)
+ggsave(g, filename = 'out/pdf/s18g.pdf', width = 5.75, height = 7)
+ggsave(h, filename = 'out/pdf/s18h.pdf', width = 5.75, height = 7)
+ggsave(i, filename = 'out/pdf/s18i.pdf', width = 4.5, height = 3.5)
 
 
 
 ```
 
 
-## Extended Data Figure 17
+## Supplementary Figure 19
 
 ```{r}
 features = 'hematocrit|hemoglobin|ferritin|transferrin|transferrinsat|buccal_ic'
@@ -716,7 +758,7 @@ corrObj2 <- corr |>
                                      TRUE ~ measure2
                                      ))
 
-cairo_pdf(here("out/pdf/e15.pdf"), width = 11, height = 9)
+cairo_pdf(here("out/pdf/s19.pdf"), width = 11, height = 9)
 multi_network_diagram(features = features,
                       seed = 3,
                       corrObj = corrObj2,

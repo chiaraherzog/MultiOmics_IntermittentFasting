@@ -1,5 +1,5 @@
 ---
-title: "Effect of menopause (E12)"
+title: "Effect of menopause (S14)"
 format:
   html:
     toc: true
@@ -12,9 +12,9 @@ format:
 
 # Figures
 
-## Extended data figure 12
+## Supplementary figure 14
 
-![](figures-png/e11.png)
+![](figures-png/figure-s14.png)
 
 # Code
 
@@ -55,6 +55,57 @@ source('src/FDRcorr.R')
 load("out/out_lmm_factor.Rdata")
 ```
 
+## Reviewer response: July 2026
+
+Does menopause influence BMI change?
+
+```{r}
+# set up data as for lmm
+# load in data
+load("data/data_normalized.Rdata")
+
+# extract all data in long format plus basic anno
+df <- as.data.frame(longForm(subsetByAssay(data,
+                                           "Body composition"),
+                    colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+                                                 'compliance', 'comprate', 'supplement',
+                                                 'bmi_at_consent',
+                                                 'dbmi',
+                                                 'mpstatrs'))) |> 
+  dplyr::filter(!is.na(value))
+
+# remove S and any non M0-M6
+df <- df |>
+  dplyr::filter(rowname == 'bmi') |> 
+  dplyr::filter(interventionId!='S' & !visitId %in% c("M12", "M18")) |>
+  dplyr::mutate(compliance = factor(compliance, levels = c("low", 'medium', 'high')),
+                visitId = factor(visitId, levels = c("M0", "M2", "M4", "M6")))
+# check class
+class(df$visitId)
+class(df$visitIdOrdered)
+
+# remove full data
+rm(data);gc()
+
+m1 <- lmer(formula = 'value ~ time + mpstatrs + (1|subjectId)',
+           data = df,
+           REML = F)
+m1
+summary(m1)
+m1_out <- broom.mixed::tidy(m1) |> 
+  dplyr::filter(effect == 'fixed' & term == 'mpstatrsyes')
+
+m2 <- lmer(formula = 'value ~ time*compliance + mpstatrs + (1|subjectId)',
+           data = df,
+           REML = F)
+m2
+summary(m2)
+m2_out <- broom.mixed::tidy(m2) |> 
+  dplyr::filter(effect == 'fixed')
+
+```
+
+
 ## Heatmap summary
 
 * showing any row for which (unadjusted) p-value < 0.01; FDR-corrected p values < 0.05 are shown in bold (only 2 - WID-EC and hydroxyisobutyric acid)
@@ -76,10 +127,17 @@ p <- plot_lmm_heatmap_frag(exp = exp_include,
 p
 ```
 
-```{r ext_10a, eval = F}
-grDevices::cairo_pdf("out/pdf/ext11a_menopause.pdf", width = 5, height = 3.5)
+```{r s14a, eval = F}
+grDevices::cairo_pdf("out/pdf/s14a_menopause.pdf", width = 5, height = 3.5)
 print(p)
 dev.off()
+```
+
+```{r}
+data.frame(variable = p@row_names_param$labels,
+                  p@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14a.txt')
+
 ```
 
 
@@ -139,21 +197,26 @@ comparison_plots_menopause(df, variable = 'imt_mean', nn = 2, all_months = T,
 ```
 
 
-```{r ext_10b-c, eval = F}
-grDevices::cairo_pdf("out/pdf/ext11b_menopause.pdf", width = 3.75, height = 3)
+```{r s14b-c, eval = F}
+grDevices::cairo_pdf("out/pdf/s14b_menopause.pdf", width = 3.75, height = 3)
 p <- comparison_plots_menopause(df[grepl('cervical', df$assay),],
                            variable = 'index_EC_discovery_version_adj', nn = 4, all_months = T,
                            ylab = 'WID-EC (cervical)', fdr = F)
 print(p)
 dev.off()
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14b.txt')
 
-grDevices::cairo_pdf("out/pdf/ext11c_menopause.pdf", width = 3.75, height = 3)
+grDevices::cairo_pdf("out/pdf/s14c_menopause.pdf", width = 3.75, height = 3)
 p <- comparison_plots_menopause(df[grepl('cervical', df$assay),],
                            variable = 'relative_epithelial_age_adj', nn = 4, all_months = T,
                            ylab = 'WID-REA (cervical)', fdr = F)
 print(p)
 dev.off()
-
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14c.txt')
 ```
 
 
@@ -245,16 +308,22 @@ plotMenopauseComp(df,
 # plotMenopauseComp(df, variable = 'pwv', nn = 2, title = 'Pulse wave velocity')
 ```
 
-```{r ext_11d-g, eval = F}
+```{r s14d-g, eval = F}
 
-cairo_pdf("out/pdf/ext11d_menopause.pdf", width = 6, height = 2.8)
+cairo_pdf("out/pdf/s14d_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df, variable = 'ic', nn = 4, title = 'buccal ic',
                   subsetAssay = 'buccal')
 print(p)
 dev.off()
 
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14d.txt')
 
-cairo_pdf("out/pdf/ext11e_menopause.pdf", width = 6, height = 2.8)
+
+cairo_pdf("out/pdf/s14e_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df,
                   variable = 'lymphocytes_single_cells_live_t_cells_cd4_t_cells_il17a',
                   nn = 4,
@@ -262,19 +331,35 @@ p <- plotMenopauseComp(df,
 print(p)
 dev.off()
 
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14e.txt')
 
 
-cairo_pdf("out/pdf/ext11f_menopause.pdf", width = 6, height = 2.8)
+
+cairo_pdf("out/pdf/s14f_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df, variable = 'Saccharimonadaceae', nn = 4, title = 'Saccharimonadaceae<br>(saliva)',
                   subsetAssay = 'Saliva microbiome: families$')
 print(p)
 dev.off()
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14f.txt')
 
-cairo_pdf("out/pdf/ext11g_menopause.pdf", width = 6, height = 2.8)
+cairo_pdf("out/pdf/s14g_menopause.pdf", width = 6, height = 2.8)
 p <- plotMenopauseComp(df, variable = 'Butyricicoccaceae', nn = 4, title = 'Butyricicoccaceae<br>(stool)',
                   subsetAssay = 'Stool microbiome: families$')
 print(p)
 dev.off()
+p$data |> dplyr::select(visitId, rowname, value, mpstatrs, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s14g.txt')
 
 ```
 

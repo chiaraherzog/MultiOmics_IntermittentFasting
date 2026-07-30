@@ -1,5 +1,5 @@
 ---
-title: "Clinical data (F2, ED4/5, S1)"
+title: "Clinical data (F2, S4-6)"
 format:
   html:
     toc: true
@@ -18,17 +18,17 @@ format:
 
 ![](figures-png/figure2-clinical.png)
 
-## Extended data figure 4
+## Supplementary figure 4
 
-![](figures-png/e3.png)
+![](figures-png/figure-s4.png)
 
-## Extended data figure 5
+## Supplementary figure 5
 
-![](figures-png/e4.png)
+![](figures-png/figure-s5.png)
 
-## Supplementary figure 1
+## Supplementary figure 6
 
-![](figures-png/suppl-figure1.png)
+![](figures-png/figure-s6.png)
 
 :::
 
@@ -79,6 +79,9 @@ load("out/out_lmm_factor.Rdata")
 ```{r load.data.vars, eval = F}
 # select clinical variables of interest
 vars <- read.table("src/clinical_variables.csv", header = T, sep = ',') |> dplyr::pull(x)
+
+# add vo2max_abs
+vars <- c(vars, "vo2max_abs")
 
 load("data/data_raw.Rdata")
 df_raw <- as.data.frame(longForm(data[vars,,],
@@ -214,6 +217,75 @@ print(plot)
 dev.off()
 ```
 
+```{r sourcedata.bmi.fm.pred}
+out <- c$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2a.txt')
+
+out <- as.data.frame(d_mod$plot$data)
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2b.txt')
+
+out <- e$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2c.txt')
+
+out <- as.data.frame(f_mod$plot$data)
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2d.txt')
+
+
+out <- g$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2e.txt')
+
+
+out <- h$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2f.txt')
+
+out <- i$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2g.txt')
+
+out <- j$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2h.txt')
+
+
+out <- k$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2i.txt')
+
+out <- l$data |> dplyr::select(rowname, value, compliance, visitId, subjectId)|> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::arrange(id) |> dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2j.txt')
+```
+
 ### k) Overall effects 
 
 To give an overview of changes across all clinical measurements, we can visualise these as a heatmap.
@@ -238,6 +310,14 @@ p <- plot_lmm_heatmap_v4(lmm_data_time = out_lmm$`Minimal model`,
 cairo_pdf("out/pdf/2k.pdf", width = 6.25, height = 8.25)
 print(p)
 dev.off()
+```
+
+```{r}
+out <- as.data.frame(p@matrix)
+out$var <- p@row_names_param$labels
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2k.txt')
 ```
 
 ### l) PCA and scree plot
@@ -316,6 +396,12 @@ plot(l)
 dev.off()
 ```
 
+```{r source.data.pca.scree}
+l$data |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2l.txt')
+
+```
+
 ### m) PCA plot (two axes)
 
 ```{r pcaplot, fig.width = 4.5, fig.height = 4, eval = F}
@@ -348,6 +434,14 @@ cairo_pdf("out/pdf/2m.pdf",
           height = 4)
 print(a)
 dev.off()
+```
+
+```{r sourcedata.pca.biplot}
+a$data |> 
+  dplyr::select(c(Groups, x, y)) |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2m.txt')
+
 ```
 
 ### n-p) Contributions to the PCs
@@ -455,7 +549,26 @@ print(plot)
 dev.off()
 ```
 
-## Extended data figure 4
+```{r sourcedata.pca.contrib.scree}
+
+pcs <- list(pc1, pc2, pc3, pc4)
+out <- imap_dfr(pcs, function(p, i) {
+  p$data |>
+    dplyr::mutate(PC = paste0("PC", i), rank = dplyr::row_number()) |>
+    dplyr::select(PC, rank, variable, assay2, value) |> 
+    dplyr::rename(feature = variable,
+                  assay = assay2)
+})
+
+
+out |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/2n-q.txt')
+
+```
+
+
+## Supplementary figure 4
 
 ```{r supplfig.clin, fig.width = 12, fig.height = 20, eval = F}
 a <- paired_longitudinal_compliance(df_change, 'scfat',
@@ -484,51 +597,153 @@ f <- paired_longitudinal_compliance(df_change, 'vo2max',
                                nn = 2,
                                ylab = '<b>∆ VO<sub>2</sub>peak</b><br>(ml/min/kg)')
 
-g <- paired_longitudinal_compliance(df_change, 'hdl',
+g <- paired_longitudinal_compliance(df_change, 'vo2max_abs',
+                               nn = 2,
+                               ylab = '<b>∆ absolute VO<sub>2</sub>peak</b><br>(ml/min)')
+
+# ### CUSTOM ABSOLUTE VO2MAX:
+# load("data/data_raw.Rdata")
+# 
+# # get weight + vo2max + power
+# tmp <- as.data.frame(wideFormat(subsetByAssay(data, c("Body composition", "Functional sports exam")),
+#                                  colDataCols = c("interventionId", "subjectId", "compliance", 
+#                                                  "visitId"))) |> 
+#   dplyr::filter(visitId %in% c("M0", "M6") & interventionId %in% c("K", "I")) |> 
+#   dplyr::select(primary:visitId,
+#                 Body.composition_weight,
+#                 Functional.sports.exam_relpower60hf:Functional.sports.exam_relmaxcap,Functional.sports.exam_absmaxcap,
+#                 Functional.sports.exam_vo2max) |> 
+#   dplyr::rename_with(~gsub("Body.composition_|Functional.sports.exam_", "", .x)) |> 
+#   dplyr::rowwise() |> 
+#   dplyr::mutate(abspower60hf = relpower60hf*weight,
+#                 abspower80hf = relpower80hf*weight,
+#                 absmaxcap2 = relmaxcap*weight,
+#                 vo2max_abs = vo2max*weight) |> 
+#   dplyr::ungroup()
+# 
+# # sanity check:
+# plot(tmp$absmaxcap, tmp$absmaxcap2) # generally correlated, so this is probably ok.
+# 
+# tmp_long <- tmp |>
+#   tidyr::pivot_wider(id_cols = c("subjectId", "compliance"),
+#                      values_from = vo2max_abs,
+#                      names_from = 'visitId') |> 
+#   dplyr::rowwise() |> 
+#   dplyr::mutate(M6 = M6-M0, M0= 0) |>
+#   ungroup() |> 
+#   dplyr::filter(!is.na(M6)) |> 
+#   tidyr::pivot_longer(cols = c(M0, M6),
+#                       names_to = 'visitId',
+#                       values_to = 'value') |> 
+#   dplyr::mutate(rowname = 'vo2max_abs')
+# 
+# g <- paired_longitudinal_compliance(tmp_long, 'vo2max_abs',
+#                                nn = 2,
+#                                ylab = '<b>∆ absolute VO<sub>2</sub>peak</b><br>(ml/min)',
+#                                fdr = F)
+# 
+#   
+# tmp |> 
+#   ggplot(aes(x = visitId,
+#              y = vo2max_abs)) +
+#   geom_boxplot() +
+#   ggpubr::stat_compare_means(ref.group = 'M0')
+# 
+# tmp |> 
+#   ggplot(aes(x = visitId,
+#              y = vo2max_abs)) +
+#   geom_boxplot() +
+#   facet_wrap(~compliance) +
+#   ggpubr::stat_compare_means(ref.group = 'M0')
+# 
+# tmp |> 
+#   ggplot(aes(x = visitId,
+#              y = vo2max)) +
+#   geom_boxplot() +
+#   facet_wrap(~compliance) +
+#   ggpubr::stat_compare_means(ref.group = 'M0')
+# 
+# tmp |> 
+#   ggplot(aes(x = visitId,
+#              y = relmaxcap)) +
+#   geom_boxplot() +
+#   facet_wrap(~compliance) +
+#   ggpubr::stat_compare_means(ref.group = 'M0')
+# 
+# tmp |> 
+#   ggplot(aes(x = visitId,
+#              y = absmaxcap2)) +
+#   geom_boxplot() +
+#   facet_wrap(~compliance) +
+#   ggpubr::stat_compare_means(ref.group = 'M0')
+
+
+h <- paired_longitudinal_compliance(df_change, 'hdl',
                                nn = 2,
                                ylab = '<b>∆ HDL cholesterol</b><br>(mg/dL)')
 
-h <- paired_longitudinal_compliance(df_change, 'ldl',
+i <- paired_longitudinal_compliance(df_change, 'ldl',
                                nn = 2,
                                ylab = '<b>∆ LDL cholesterol</b><br>(mg/dL)')
 
-i <- paired_longitudinal_compliance(df_change, 'uricacid',
+j <- paired_longitudinal_compliance(df_change, 'uricacid',
                                nn = 2,
                                ylab = '<b>∆ uric acid</b><br>(U/L)')
 
-j <- paired_longitudinal_compliance(df_change, 'ethickum',
+k <- paired_longitudinal_compliance(df_change, 'ethickum',
                                     nn = 2,
                                      ylab = '<b>∆ epidermal thickness</b><br>(µm)')
+
+
+
+
+
 
 design <-"
 AABBCC
 DDDEEE
 FFGGHH
-IIJJ##"
+IIJJKK"
 
 plot <- (a+b+c+d+e+f+
-           g+h+i+j) +
+           g+h+i+j+k) +
   plot_layout(design = design) +
   plot_annotation(tag_levels = 'a') &
   theme(aspect.ratio = NULL)
 ```
 
 ```{r print.supplementary, eval = F}
-cairo_pdf("figures-pdf/e3.pdf", width = 11, height = 16)
+cairo_pdf("figures-pdf/s4.pdf", width = 11, height = 16)
 print(plot)
 dev.off()
 
 
 ggsave(plot,
-       filename = 'figures-png/e3.png',
+       filename = 'figures-png/figure-s4.png',
        dpi = 600,
        width = 11,
        height = 16,
        unit = 'in')
 ```
 
+```{r sourcedata.suppl4}
+plots <- list(a,b,c,d,e,f,g,h,i,j,k)
 
-## Extended Data Figure 5
+letters_ab <- letters[1:11] 
+
+iwalk(plots, function(p, i) {
+  p$data |>
+    dplyr::select(rowname, value, subjectId, visitId, compliance) |> 
+    dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+    dplyr::arrange(id) |> dplyr::select(-subjectId)  |> 
+    write.table(quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE,
+              file = paste0("srcdata/s4", letters_ab[i], ".txt"))
+})
+```
+
+
+
+## Supplementary Figure 5
 
 ```{r}
 source(here("src/paired_longitudinal_compliance.R"))
@@ -564,7 +779,7 @@ e <- paired_longitudinal_compliance(df_raw, variable = 'hematocrit', nn = 4,
 source(here("src/plotFP.R"))
 
 f <- plotFP(df_raw, variable = 'ferritin', nn = 2,
-                               ylab = '<b>Ferritin</b><br>mg/dL')+
+            ylab = '<b>Ferritin</b><br>mg/dL')+
   geom_hline(yintercept = 13, linetype = 'dashed', colour = 'grey50') +
   geom_hline(yintercept = 150, linetype = 'dashed', colour = 'grey50')
 
@@ -588,16 +803,77 @@ plot <- (a|b)/(c|d)/(e|f)/(g|h) +
 
 
 ```{r}
-cairo_pdf(here("figures-pdf/e4.pdf"), width = 8, height = 12.5)
+cairo_pdf(here("figures-pdf/s5.pdf"), width = 8, height = 12.5)
 print(plot)
 dev.off()
 
-ggsave(plot = plot, filename = here("figures-png/e4.png"), width = 8, height = 13,  unit = 'in',
+ggsave(plot = plot, filename = here("figures-png/figure-s5.png"), width = 8, height = 13,  unit = 'in',
        dpi = 600)
 
 ```
 
-## Supplementary figure 1
+```{r sourcedata.s5}
+out <- a$data |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5a.txt')
+
+out <- b$data |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5b.txt')
+
+out <- c$data |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5c.txt')
+
+out <- d$data |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5d.txt')
+
+
+out <- f$data  |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId, pattern) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5f.txt')
+
+
+out <- g$data  |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId, pattern) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5g.txt')
+
+out <- h$data  |> 
+  dplyr::select(rowname, value, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s5h.txt')
+
+```
+
+## Supplementary figure 6
 
 Here we show some examples of compliance and MCT modulation, using the example of fat mass. 
 
@@ -620,10 +896,28 @@ print(plot)
 
 ```{r print.suppl, eval = F}
 ggsave(plot,
-       filename = 'figures-png/suppl-figure1.png',
+       filename = 'figures-png/figure-s6.png',
        width = 8,
        height = 3.75,
        units = 'in')
+```
+
+
+```{r sourcedata.s6}
+out <- compliance$data |> 
+  dplyr::select(rowname, compliance, visitId, subjectId) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s6a.txt')
+
+
+out <- intervention$data |> 
+  dplyr::select(rowname, value, compliance, visitId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s6b.txt')
 ```
 
 :::

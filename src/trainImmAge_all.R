@@ -42,12 +42,41 @@ trainImmAge_all <- function(data, exp, populations,
   coefs <- as.matrix(coef(res$fit.cv, s = "lambda.min")) |> 
     as.data.frame() |> 
     tibble::rownames_to_column('name') |> 
+    dplyr::rename(s1 = `lambda.min`) |> 
     dplyr::filter(s1 != 0 & name != '(Intercept)') |> 
     dplyr::arrange(desc(abs(s1)))
   
   dt <- DT::datatable(coefs |> 
                         dplyr::left_join(dplyr::select(populations, name, `population name`)) |> 
                         dplyr::select(`population name`, s1))
+  
+  ## Cross-validated baseline performance (evaluation, reviewer comment)-----
+  alpha_final <- models[[keep]]
+  x_cv = as.matrix(trdata)
+  y_cv <- as.numeric(trpheno$age_at_consent)
+  
+  set.seed(42)
+  k <- 10
+  folds <- sample(rep(1:k, length.out = nrow(x_cv)))
+  oof_pred <- rep(NA_real_, nrow(x_cv))
+  
+  for (f in seq_len(k)) {
+    tr_idx <- which(folds != f)
+    te_idx <- which(folds == f)
+    cvfit  <- glmnet::cv.glmnet(x_cv[tr_idx, , drop = FALSE],
+                                y_cv[tr_idx],
+                                alpha = alpha_final)
+    oof_pred[te_idx] <- as.numeric(
+      predict(cvfit, newx = x_cv[te_idx, , drop = FALSE], s = "lambda.min")
+    )
+  }
+  
+  
+  cv_cor <- as.numeric(cor(y_cv, oof_pred))
+  cv_r2  <- cv_cor^2
+  cat("Cross-validated baseline R2 (across individuals): ",
+      round(cv_r2, 3), " (r = ", round(cv_cor, 3), ")\n", sep = "")
+  
   
   # Compute values in the full dataset -------
   full <- as.data.frame(wideFormat(data[,,
@@ -201,6 +230,12 @@ trainImmAge_all <- function(data, exp, populations,
               res = res,
               coef = dt,
               coef_raw = coefs,
+              cv_r2 = cv_r2,
+              cv_cor = cv_cor,
+              cv_oof = data.frame(
+                age = y_cv,
+                oof_pred = oof_pred
+              ),
               plots = list("corr_age" = corr_age,
                            "corr_age_intervent" = corr_age_intervent,
                            "corr_agedev_intervent" = corr_agedev_intervent,

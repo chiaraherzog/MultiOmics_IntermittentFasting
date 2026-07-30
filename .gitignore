@@ -33,3 +33,6 @@ out/*
 
 !src/*
 
+srcdata/*
+src/indices_info_completed.xlsx
+

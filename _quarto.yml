@@ -24,7 +24,6 @@ website:
           - metabolome-anno.qmd
           - helper-corr-ic-at-baseline_salivamicrob.qmd
           - major-gut-metabolites.qmd
-          - deltaBMI.qmd
           - dropout-association.qmd
           - mefisto.qmd
       - section: "Figures"
@@ -42,17 +41,18 @@ website:
       - section: "Tables"
         contents:
           - tab1.qmd
-          - et2.qmd
-          - et3.qmd
-          - et4.qmd
-          - et5.qmd
-          - et6.qmd
-          - et7.qmd
-          - et8.qmd
-          - et9.qmd
-          - et10.qmd
-          - et11.qmd
-          - et12.qmd
+          - st2.qmd
+          - st3.qmd
+          - st4.qmd
+          - st5.qmd
+          - st6.qmd
+          - st7.qmd
+          - st8.qmd
+          - st9.qmd
+          - st10.qmd
+          - st11-deltaBMI.qmd
+          - st11.qmd
+          - st12.qmd
           
 format:
   html:

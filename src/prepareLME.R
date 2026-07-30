@@ -1,4 +1,4 @@
-prepareLME <- function(){
+prepareLME <- function(keep){
   
   
   load(here("out/out_lmm_factor.Rdata"))
@@ -10,9 +10,7 @@ prepareLME <- function(){
     dplyr::filter(!grepl("ASVs$|families_clr", assay)) |> 
     dplyr::mutate(x = paste0(assay, "_", x))
   
-  
   # Subset relevant models 
-  keep <- c("Minimal model", "Basic model with BMI", "Intervention (higher compliance)", "Menopause general", "Menopause interaction")
   out_lmm <- out_lmm[keep]
   
   # FDR Correction

@@ -182,14 +182,14 @@ for (x in c("overall", "compliance comparison", "I versus K", "high compliance o
 
   writexl::write_xlsx(as.data.frame(wilcoxon_tests[[x]] |> 
                                       dplyr::filter(!grepl("ImmAge_gen_adj", x))),
-                      path = paste0("out/Extended-Data-Table-",
+                      path = paste0("out/Supplementary-Table-S",
                                     file,
                                     ".xlsx")
     )
 }
 ```
 
-Wilcoxon test results can be seen in Extended Data Tables [ET2](et2.qmd), [ET3](et3.qmd), [ET4](et4.qmd) and [ET5](et5.qmd) and on the data portal.
+Wilcoxon test results can be seen in Supplementary Tables [ST2](st2.qmd), [ST3](st3.qmd), [ST4](st4.qmd) and [ST5](st5.qmd) and on the data portal.
 
 ```{r}
 knitr::purl("helper-wilcoxon-tests.qmd",

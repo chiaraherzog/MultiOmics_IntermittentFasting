@@ -111,6 +111,16 @@ process_and_summarise_data_T1 <- function(data_raw_path, baseline_change_path, o
     dplyr::left_join(change, by = 'subjectId') |> 
     dplyr::select(-c(subjectId))
   
+  # Create binary grouping: dropout vs. all others combined (for p-values comparison)
+  df <- df |>
+    dplyr::mutate(
+      dropout_vs_rest = factor(
+        ifelse(complabel == "dropout<br>", "dropout", "other"),
+        levels = c("other", "dropout")
+      )
+    )
+  
+  
   # Generate summary table
   cat("Generating summary table...\n")
   labels <- list(
@@ -143,6 +153,12 @@ process_and_summarise_data_T1 <- function(data_raw_path, baseline_change_path, o
     delta_Blood.haemogram_hemoglobin = gt::html('&nbsp;&nbsp;&nbsp;&nbsp;∆ M6')
   )
   
+  vars_to_summarise <- df |>
+    dplyr::select(dplyr::any_of(names(labels))) |>
+    names()
+  
+  
+  # Main table (compliance columns)
   t1 <- df |> 
     dplyr::select(complabel, dplyr::any_of(names(labels))) |> 
     gtsummary::tbl_summary(
@@ -161,6 +177,33 @@ process_and_summarise_data_T1 <- function(data_raw_path, baseline_change_path, o
     gtsummary::modify_header(update = gtsummary::all_stat_cols() ~ "<b>{level}</b><br>n = {n}") |> 
     gtsummary::modify_header(update = stat_0 ~ "<b>{level}</b><br><br>n = {n}")
   
+  # --- Auxiliary table: dropout vs rest, only to extract the p-values ---
+  t_pval <- df |>
+    dplyr::select(dropout_vs_rest, dplyr::all_of(vars_to_summarise)) |>
+    gtsummary::tbl_summary(
+      by = 'dropout_vs_rest',
+      type = list(Functional.sports.exam_diabp ~ "continuous", delta_Functional.sports.exam_diabp ~ "continuous"),
+      label = labels,
+      missing = "no"
+    ) |>
+    gtsummary::add_p()
+  
+  
+  # --- Merge the p-value column into the main table ---
+  t1 <- gtsummary::modify_table_body(
+    t1,
+    ~ dplyr::left_join(
+      .x,
+      t_pval$table_body |> dplyr::select(variable, row_type, label, p.value),
+      by = c("variable", "row_type", "label")
+    )
+  ) |>
+    gtsummary::modify_header(p.value ~ "<b>P value</b><br>dropout vs. rest") |>
+    gtsummary::modify_fmt_fun(p.value ~ gtsummary::style_pvalue) |>
+    gtsummary::modify_header(update = gtsummary::all_stat_cols() ~ "<b>{level}</b><br>n = {n}") |>
+    gtsummary::modify_header(update = stat_0 ~ "<b>{level}</b><br><br>n = {n}")
+  
+  
   # Convert to gt and customize the table appearance
   cat("Customizing table appearance...\n")
   t2 <- t1 |> 
@@ -173,7 +216,7 @@ process_and_summarise_data_T1 <- function(data_raw_path, baseline_change_path, o
       }
     ) |> 
     gt::tab_options(
-      table.width = gt::px(680),
+      table.width = gt::px(720),
       table.font.size = 12,
       column_labels.font.size = 13,
       table.font.names = "Helvetica"

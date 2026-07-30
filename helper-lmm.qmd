@@ -36,12 +36,13 @@ Normalized data are loaded to run trajectories. To avoid any duplicates for vari
 load("data/data_normalized.Rdata")
 
 # extract all data in long format plus basic anno
-df <- as.data.frame(longFormat(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
+df <- as.data.frame(longForm(data, colData = c("age_at_consent", "interventionId", "subjectId", "visitId", "time",
                                                  'compliance', 'comprate', 'supplement',
                                                  'bmi_at_consent',
                                                  'dbmi',
                                                  'mpstatrs'))) |> 
   dplyr::filter(!is.na(value))
+# table(df$mpstatrs)
 
 # Filter variables: (see wilcoxon-tests.qmd for how this was generated:)
 load(here("src/vars.Rdata"))
@@ -61,6 +62,7 @@ df <- df |>
 # check class
 class(df$visitId)
 class(df$visitIdOrdered)
+# table(df$mpstatrs)
 
 # remove full data
 rm(data);gc()
@@ -112,8 +114,11 @@ We predominantly use:
 # Write Extended Data Table (Factor)
 
 ```{r, eval = F}
+load('out/out_lmm_factor.Rdata')
+keep <- c('Minimal model', 'Basic model with BMI', 'Intervention (higher compliance)',
+          'Menopause general', 'Menopause interaction')
 source(here("src/prepareLME.R"))
-out_lmm <- prepareLME()
+out_lmm <- prepareLME(keep)
 
 nrow(out_lmm[[1]])
 
@@ -132,11 +137,11 @@ for (x in names(out_lmm)){
                    x == 'Menopause interaction' ~ "10")
   
   writexl::write_xlsx(as.data.frame(out_lmm[[x]]),
-                      path = paste0("out/Extended-Data-Table-",
+                      path = paste0("out/Supplementary-Table-S",
                                     file,
                                     ".xlsx")
     )
 }
 ```
 
-Tables can be viewed in extended data tables [ET6](et6.qmd), [ET7](et7.qmd), and [ET8](et8.qmd) and on the data portal.
+Tables can be viewed in supplementary tables [ST6](st6.qmd), [ST7](st7.qmd), [ST8](st8.qmd), [ST9](st9.qmd), and  [ST10](st10.qmd) and on the data portal.

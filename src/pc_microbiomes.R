@@ -58,7 +58,8 @@ pc_microbiomes <- function(df_raw_wide,features,vegan_trans, n_pc, sampletype, l
                                                col.var = "black") +
     theme_bw() +
     theme(aspect.ratio = 1) +
-    guides(fill = element_blank()) +
+    #guides(fill = element_blank()) +
+    guides(fill = "none") +
     scale_colour_manual(name = 'month',
                         values = cols[c(2, 1, 4, 5)],
                         aesthetics = c('fill', 'colour')) +
@@ -125,6 +126,20 @@ pc_microbiomes <- function(df_raw_wide,features,vegan_trans, n_pc, sampletype, l
                                                                                                 fontsize = 10,
                                                                                                 fontface = "bold")))
                            )
+  
+  # PERMANOVA
+  meta_dat <- df_raw_wide[df_raw_wide$primary %in% rownames(pcmat), ] |>
+    dplyr::filter(!is.na(compliance)) 
+  dat <- pcmat[meta_dat$primary, ]
+  
+  plotList[[4]] <- vegan::adonis2(
+   dat ~ interventionId + visitId + compliance + mpstatrs + age_at_consent + bmi_at_consent + smoking_ever + etohu_curr + diet + preg_ever,
+    data = meta_dat,
+    method = "euclidean",
+    by = "margin",
+    permutations = 999,
+    strata = meta_dat$subjectId
+  )
   
   return(plotList)
   

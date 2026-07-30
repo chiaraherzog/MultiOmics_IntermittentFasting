@@ -1,5 +1,5 @@
 ---
-title: "Baseline characteristics (T1, ET1)"
+title: "Baseline characteristics (T1, ST1)"
 format:
   html:
     toc: true
@@ -35,7 +35,6 @@ result_table$table
 
 ```{r eval = F}
 # Are any significantly different across groups?
-  
 df <- result_table$data
 
 # Identify column types to test
@@ -133,11 +132,31 @@ c <- df |> ggplot(aes(x = complabel,
 
 plot <- (b|c|a) + plot_layout(guides = 'collect')
 
-cairo_pdf(here("out/pdf/e1b.pdf"),
+cairo_pdf(here("out/pdf/s1b.pdf"),
           width = 7,
           height = 3.5)
 print(plot)
 dev.off()
+```
+
+
+```{r sourcedata.dropouts}
+out1 <- b$data |> dplyr::select(complabel, M2_bmi) |> 
+  dplyr::rename(delta_bmi = M2_bmi) |> 
+  dplyr::mutate(visitId = 'M2') |> dplyr::arrange(complabel)
+
+out2 <- c$data |> dplyr::select(complabel, M4_bmi) |> 
+  dplyr::rename(delta_bmi = M4_bmi) |> 
+  dplyr::mutate(visitId = 'M4') |> dplyr::arrange(complabel)
+out3 <- a$data |> dplyr::select(complabel, delta_Body.composition_bmi) |> 
+  dplyr::rename(delta_bmi = delta_Body.composition_bmi) |> 
+  dplyr::mutate(visitId = 'M6') |> dplyr::arrange(complabel)
+
+out <- rbind(out1, out2, out3)
+
+out |>
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+              file = 'srcdata/s1b.txt')
 ```
 
 

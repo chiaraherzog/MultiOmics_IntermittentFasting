@@ -1,5 +1,5 @@
 ---
-title: "Immune and metabolome data (F4, ED7-9)"
+title: "Immune and metabolome data (F4, S8-11)"
 format:
   html:
     toc: true
@@ -18,17 +18,21 @@ format:
 
 ![](figures-png/figure4-imm-metab.png)
 
-## Extended Data Figure 7
+## Supplementary Figure 8
 
-![](figures-png/e6.png)
+![](figures-png/figure-s8.png)
 
-## Extended Data Figure 8
+## Supplementary Figure 9
 
-![](figures-png/e7-imm.png)
+![](figures-png/figure-s9.png)
 
-## Extended Data Figure 9
+## Supplementary Figure 10
 
-![](figures-png/e8-metab.png)
+![](figures-png/figure-s10-imm.png)
+
+## Supplementary Figure 11
+
+![](figures-png/figure-s11-metab.png)
 
 :::
 
@@ -157,6 +161,11 @@ print(immage)
 dev.off()
 ```
 
+```{r sourcedata.coef}
+ImmAge_gen_coef |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4a.txt')
+```
+
 ### b) ImmAge correlation with age
 
 ```{r immage}
@@ -200,6 +209,12 @@ print(immage)
 dev.off()
 ```
 
+```{r sourcedata.immage.age}
+immage$data |> dplyr::select(rowname, value, visitId, interventionId) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4b.txt')
+```
+
 ### c) Changes of ImmuneAge
 
 ```{r delta.immage}
@@ -226,6 +241,15 @@ cairo_pdf(here("out/pdf/4c.pdf"),
           width = 4, height = 2.5)
 print(immage_change)
 dev.off()
+```
+
+```{r sourcedata.immage.change}
+immage_change$data |> dplyr::select(rowname, value, visitId, subjectId, compliance)|>
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId) |> 
+  dplyr::arrange(id) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4c.txt')
 ```
 
 
@@ -267,7 +291,13 @@ print(m)
 dev.off()
 ```
 
-### f) Saliva heatmap (Wilcoxon tests)
+```{r sourcedata.metab.overview}
+m$data |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4d.txt')
+```
+
+### e) Saliva heatmap (Wilcoxon tests)
 
 ```{r saliva.heatmap}
 labels <- ref_saliva |> 
@@ -298,13 +328,19 @@ saliva_heatmap <- plot_heatmap_Metab(timenorm, relabel = labels,
 ```
 
 ```{r print.saliva.heatmap}
-cairo_pdf(here("out/pdf/4f.pdf"),
+cairo_pdf(here("out/pdf/4e.pdf"),
           width = 4.9, height = 5.75)
 print(saliva_heatmap)
 dev.off()
 ```
 
-### g) Urine heatmap (Linear mixed effects models)
+```{r sourcedata.saliva.heatmap}
+cbind(saliva_heatmap@row_names_param$labels, saliva_heatmap@matrix) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4e.txt')
+```
+
+### f) Urine heatmap (Linear mixed effects models)
 
 ```{r urine.heatmap}
 labels <- ref_urine |> 
@@ -349,10 +385,16 @@ urine_heatmap <- plot_lmm_heatmap_v4(time,
 ```
 
 ```{r print.urine.heatmap}
-cairo_pdf(here("out/pdf/4g.pdf"),
+cairo_pdf(here("out/pdf/4f.pdf"),
           width = 5.25, height = 4.5)
 print(urine_heatmap)
 dev.off()
+```
+
+```{r sourcedata.urine.heatmap}
+cbind(urine_heatmap@row_names_param$labels, urine_heatmap@matrix) |> 
+  write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/4f.txt')
 ```
 
 ## Enrichment analysis for saliva metabolites
@@ -610,10 +652,9 @@ plot_enrichment <- p |> ggplot(aes(x = enrichment.ratio,
 pdf("out/pdf/4h.pdf", width = 5.95, height = 3.25)
 print(plot_enrichment)
 dev.off()
-
 ```
 
-## Extended Data Figure 8
+## Supplementary Figure 8
 
 ### a) immune data PCA: scree diagram
 
@@ -632,19 +673,41 @@ pc <- pca(data, experiment, features, relabel = relabel, complete = T,ncontrib =
 ```
 
 ```{r print.scree}
-cairo_pdf(here("out/pdf/e6a.pdf"),
+cairo_pdf(here("out/pdf/s8a.pdf"),
           width = 1.5, height = 2.5)
 print(pc$scree)
 dev.off()
 ```
 
+
+```{r sourcedata.scree.ic}
+pc$scree$data |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column('PC') |> 
+  dplyr::select(PC, `percentage of variance`)|> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s8a.txt')
+
+```
+
 ### b) PCA biplot (PCs 1/2)
 
 ```{r print.pca.biplot, eval = F}
-cairo_pdf(here("out/pdf/e6b.pdf"),
+cairo_pdf(here("out/pdf/s8b.pdf"),
           width = 3, height = 2.75)
 print(pc$biplot)
 dev.off()
+```
+
+```{r sourcedata.pcbiplot}
+out <- pc$biplot$data |> 
+  as.data.frame() |> 
+  dplyr::mutate(subjectId = substr(name, 1, 4)) |> 
+  dplyr::select(subjectId, Col., x, y) |> 
+  dplyr::mutate(id = match(subjectId, sample(unique(subjectId)))) |>
+  dplyr::select(-subjectId)
+
+out |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s8b.txt')
 ```
 
 ### c) immune PCA Heatmap
@@ -654,6 +717,12 @@ cairo_pdf(here("out/pdf/e6c.pdf"),
           width = 4, height = 2.5)
 pc$heatmap
 dev.off()
+```
+
+```{r sourcedata.pcheatmap}
+cbind(pc$heatmap@matrix, rownames(pc$heatmap@matrix)) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s8c.txt')
+
 ```
 
 ### d) Immune populations: WB Cell staining - tree + heatmap
@@ -769,7 +838,7 @@ order <- tree_wb$data |>
 ```
 
 ```{r print.imm.pop.tree}
-cairo_pdf(here("out/pdf/e6d1.pdf"),
+cairo_pdf(here("out/pdf/s8d1.pdf"),
           width = 5.35, height = 4.5)
 print(tree_wb)
 dev.off()
@@ -812,10 +881,16 @@ wb_heat <- plot_lmm_heatmap_v4(lmm_data_time = time,
 ```
 
 ```{r print.imm.pop.heatmap}
-cairo_pdf(here("out/pdf/e6d2.pdf"),
+cairo_pdf(here("out/pdf/s8d2.pdf"),
           width = 4.9, height = 4.5)
 print(wb_heat)
 dev.off()
+```
+
+```{r sourcedat.wb_heat}
+cbind(wb_heat@row_names_param$labels, wb_heat@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s8d.txt')
+
 ```
 
 
@@ -928,7 +1003,7 @@ order <- tree_t$data |>
 ```
 
 ```{r print.t.pop.tree}
-cairo_pdf(here("out/pdf/e6e1.pdf"),
+cairo_pdf(here("out/pdf/s8e1.pdf"),
           width = 5.35, height = 5)
 print(tree_t)
 dev.off()
@@ -976,10 +1051,62 @@ dev.off()
 ```
 
 
+```{r sourcedata.t_heat}
+cbind(t_heat@row_names_param$labels, t_heat@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s8e.txt')
 
-## Extended data 7
+```
 
-### a-c) biplot for stimulation
+## Supplementary Figure 9
+
+```{r}
+load("out/immage_out_cv.Rdata")
+
+tmp <- data.frame(age = out$cv_oof$age,
+                 cv = out$cv_oof$oof_pred)
+
+
+labx <- '<b>Age at baseline</b>'
+laby <- '<b>ImmuneAge (out-of-sample CV)</b>'
+
+p <- tmp |> 
+  ggplot(aes(x = age,
+             y = cv)) +
+  geom_point(alpha=0.6) +
+  geom_smooth(method = 'lm',color = "#bd647d") +
+  ggpubr::stat_cor(size = 2.75) +
+    labs(x = labx,
+         y = laby) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown(),
+    strip.background = element_blank(),
+    legend.position = 'top',
+    strip.text.x = element_text(
+        size = 10, face = "bold"),
+  ) +
+  scale_shape_manual(values = c(1, 16),
+                     name = '')
+
+```
+
+```{r}
+ggsave(p, file = here("figures-png/figure-s9.png"),
+       dpi = 300,
+       width = 3.5, height = 3.5)
+```
+
+```{r}
+p$data |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s9.txt')
+
+```
+
+
+## Supplementary figure 10
+
+### a, b) PC Scree for stimulation
 
 ```{r}
 experiment <- c("Flow cytometry: stimulated T cells", "Flow cytometry: unstimulated T cells")
@@ -1004,28 +1131,43 @@ pc <- pca(data, experiment, features, relabel = relabel, complete = T,ncontrib =
 ```
 
 ```{r print.scree.stim}
-cairo_pdf(here("out/pdf/e7a.pdf"),
+cairo_pdf(here("out/pdf/s10a.pdf"),
           width = 1.5, height = 2.5)
 print(pc$scree)
 dev.off()
 ```
 
-### b) PCA biplot (PCs 1/2)
+```{r sourcedata.stim.scree}
+pc$scree$data |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column('PC') |> 
+  dplyr::select(PC, `percentage of variance`)|> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s10a.txt')
 
-```{r print.pca.biplot.stim, eval = F}
-cairo_pdf(here("out/pdf/e7b.pdf"),
-          width = 3, height = 3.5)
-print(pc$biplot)
-dev.off()
 ```
+
+<!-- ### b) PCA biplot (PCs 1/2) -->
+
+<!-- ```{r print.pca.biplot.stim, eval = F} -->
+<!-- cairo_pdf(here("out/pdf/e7b.pdf"), -->
+<!--           width = 3, height = 3.5) -->
+<!-- print(pc$biplot) -->
+<!-- dev.off() -->
+<!-- ``` -->
 
 ### c) immune PCA Heatmap
 
 ```{r, print.imm.pca.heatmap.stim}
-cairo_pdf(here("out/pdf/e7c.pdf"),
+cairo_pdf(here("out/pdf/s10b.pdf"),
           width = 4, height = 2.5)
 pc$heatmap
 dev.off()
+```
+
+```{r}
+cbind(rownames(pc$heatmap@matrix), pc$heatmap@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s10b.txt')
+
 ```
 
 ### d) heatmap of changes
@@ -1065,10 +1207,16 @@ out <- plot_lmm_heatmap_v4(lmm_data_time = time,
 
 
 ```{r, print.imm.heatmap.stim}
-cairo_pdf(here("out/pdf/e7d.pdf"),
+cairo_pdf(here("out/pdf/s10c.pdf"),
           width = 6, height = 4.5)
 out
 dev.off()
+```
+
+```{r sourcedat.tstim}
+cbind(out@row_names_param$labels, out@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s10c.txt')
+
 ```
 
 ### e-f) IL-17/TNF
@@ -1118,7 +1266,19 @@ il17
 dev.off()
 ```
 
-## Extended Data Figure 9
+```{r sourcedata.tnf.il17}
+tnf$data |> dplyr::select(Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd8_t_cells_tnf, Immune.age..general_ImmAge_gen, visitId) |> 
+  dplyr::rename(TNFa = Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd8_t_cells_tnf,
+                ImmuneAge = Immune.age..general_ImmAge_gen) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s10d.txt')
+
+il17$data |> dplyr::select(Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd4_t_cells_il17a, Immune.age..general_ImmAge_gen, visitId) |> 
+  dplyr::rename(IL17 = Flow.cytometry..stimulated.T.cells_lymphocytes_single_cells_live_t_cells_cd4_t_cells_il17a,
+                ImmuneAge = Immune.age..general_ImmAge_gen) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s10e.txt')
+```
+
+## Supplementary Figure 11
 
 ### Saliva: PCA
 
@@ -1159,31 +1319,65 @@ relabel <- ref_urine |>
 pc_urine <- pca(data, experiment, features, complete = T, relabel = relabel)
 ```
 
-### Assemble
-
 ```{r print.saliva.scree}
-cairo_pdf(here("out/pdf/e8a.pdf"),
+cairo_pdf(here("out/pdf/s11a.pdf"),
           width = 1.5, height = 3)
 pc_saliva$scree
 dev.off()
 ```
 
 
+```{r sourcedata.pcsaliva.scree}
+pc_saliva$scree$data |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column('PC') |> 
+  dplyr::select(PC, `percentage of variance`)|> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s11a.txt')
+```
+
+### b) Saliva: PCA - Heatmap
+
+```{r print.saliva.pca.heatmap}
+cairo_pdf(here("out/pdf/s11b.pdf"),
+          width = 4, height = 3)
+pc_saliva$heatmap
+dev.off()
+```
+
+```{r sourcedata.saliva.heatmap}
+cbind(rownames(pc_saliva$heatmap@matrix), pc_saliva$heatmap@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s11b.txt')
+
+```
 
 ```{r print.urine.scree}
-cairo_pdf(here("out/pdf/e8c.pdf"),
+cairo_pdf(here("out/pdf/s11c.pdf"),
           width = 1.5, height = 3)
 pc_urine$scree
 dev.off()
 ```
 
+```{r sourcedata.pcurine.scree}
+pc_urine$scree$data |> 
+  as.data.frame() |> 
+  tibble::rownames_to_column('PC') |> 
+  dplyr::select(PC, `percentage of variance`)|> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s11c.txt')
+```
+
 ### d) Urine: PCA - Heatmap
 
 ```{r print.urine.pca.heatmap}
-cairo_pdf(here("out/pdf/e8d.pdf"),
+cairo_pdf(here("out/pdf/s11d.pdf"),
           width = 4, height = 3)
 pc_urine$heatmap
 dev.off()
+```
+
+```{r sourcedata.urine.heatmap}
+cbind(rownames(pc_urine$heatmap@matrix), pc_urine$heatmap@matrix) |> write.table(quote = F, sep = "\t", row.names = F, col.names = T,
+                   file = 'srcdata/s11d.txt')
+
 ```
 
 :::
